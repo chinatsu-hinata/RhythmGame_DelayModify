@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="arcade">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offset Calibrator · 用结算数字反推最佳延迟</title>
+<meta name="description" content="填入每局各判定档位的数量（带早/晚的游戏还能填细分），用抛物线拟合反推你该把音频延迟或判定延迟调到多少。纯前端、不联网。">
+<script>
+  // 主题要在样式加载前定下来，否则会闪一下默认主题
+  try {
+    var saved = localStorage.getItem('offset-calibrator:theme');
+    if (saved === 'chinatsu' || saved === 'arcade') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<button type="button" class="theme-btn" id="themeBtn" aria-label="切换配色风格">切换风格</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="mascot" aria-hidden="true">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="36" cy="36" r="33" fill="#ffd427"/>
+        <circle cx="36" cy="36" r="33" stroke="#3a2b06" stroke-width="3"/>
+        <circle cx="26" cy="32" r="3.4" fill="#3a2b06"/>
+        <circle cx="46" cy="32" r="3.4" fill="#3a2b06"/>
+        <path d="M25 44c3.2 4.2 7.4 6.2 11 6.2S44 48.2 47 44" stroke="#3a2b06" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="M14 22c4-6 9-8 13-8M58 22c-4-6-9-8-13-8" stroke="#3a2b06" stroke-width="3.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>Offset Calibrator<span class="dot"> · </span>延迟标定器</h1>
+    <p class="sub">填入每局各档位的数量（有早/晚细分的档位也能填），用几局数据反推 <b>延迟该调多少</b>。</p>
+    <p class="tiny">纯前端 · 不联网 · 数据只存在这个浏览器里</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ⓪ 选游戏 -->
+  <section class="panel" id="gamePanel">
+    <h2>⓪ 先选你玩的游戏</h2>
+    <p class="hint">
+      每个游戏能调的栏位不一样：有的只有<b>音频延迟</b>，有的只有<b>判定延迟</b>，
+      有的两栏都有。选错游戏，输入框就会跟着不对。
+    </p>
+    <div class="grid two">
+      <label>游戏
+        <select id="gameSelect"></select>
+      </label>
+    </div>
+    <p class="hint small" id="gameHint"></p>
+  </section>
+
+  <!-- ① 记一局 -->
+  <section class="panel" id="inputPanel">
+    <h2>① 打完一局，把数字填进来</h2>
+    <p class="hint">
+      判定档位按从高到低填。<b>带「早 / 晚」的档位</b>（结算里会显示 Fast / Late 的那些）会多出两个小框，
+      只填这一档里的细分数量就行；没有细分的游戏只填总数。
+    </p>
+
+    <form id="runForm" autocomplete="off">
+      <div class="grid" id="tierFields"></div>
+      <div class="grid" id="axisFields"></div>
+
+      <div class="axis" id="axisPicker">
+        <span>这一次要标定哪一栏：</span>
+        <div id="axisRadios"></div>
+      </div>
+
+      <div class="axis" id="modePicker" hidden>
+        <span>主指标取哪一档：</span>
+        <div id="modeRadios"></div>
+      </div>
+
+      <p class="err" id="formError" hidden></p>
+
+      <div class="row">
+        <button type="submit" class="primary">加入记录</button>
+        <button type="button" class="ghost small" id="demoBtn">填示例数据</button>
+        <button type="button" class="ghost small" id="recalcBtn">重新分析</button>
+        <button type="button" class="ghost small" id="clearBtn">清空本游戏</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ② 结论 -->
+  <section class="panel" id="resultPanel">
+    <h2>② 结论</h2>
+
+    <div class="verdict">
+      <div class="verdict-main">
+        <span class="label" id="verdictLabel">等数据</span>
+        <strong id="verdictValue">—</strong>
+      </div>
+      <div class="verdict-sub" id="verdictSub">先打几局，把数字填进来吧～</div>
+    </div>
+
+    <div class="warnings" id="warnings"></div>
+    <div class="reasons" id="reasons"></div>
+
+    <canvas id="chart" height="280"></canvas>
+    <p class="meta" id="metaLine"></p>
+
+    <div class="row">
+      <button type="button" class="primary small" id="copyBtn" hidden>复制结论</button>
+    </div>
+  </section>
+
+  <!-- ③ 记录 -->
+  <section class="panel" id="runsPanel">
+    <h2>③ 记录</h2>
+    <div class="table-scroll">
+      <table class="table runs">
+        <thead id="runsHead"></thead>
+        <tbody id="runsBody"></tbody>
+      </table>
+    </div>
+    <p class="hint small" id="runsHint"></p>
+
+    <h3>按轴值分组</h3>
+    <div class="table-scroll">
+      <table class="table">
+        <thead id="groupsHead"></thead>
+        <tbody id="groupsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ④ 加自己的游戏 -->
+  <section class="panel" id="gamesPanel">
+    <h2>④ 加自己的游戏 &amp; 判定区间</h2>
+    <p class="hint">
+      内置只有 4 款。想加别的游戏，就在这里写一段 JSON —— 格式是
+      <b>{ "游戏名": { "a0": 支持音频延迟, "a1": 支持判定延迟, "tiers": [档位…] } }</b>。
+      每个档位可以写 <b>name</b>（名字）、<b>role</b>（center 正中 / near 近 / far 远 / miss 漏）、
+      <b>dir</b>（这一档结算里有没有早/晚）、<b>ms</b>（判定区间 ±毫秒，只用于记录和展示，不参与计算）。
+      自定义游戏存在这个浏览器里，换了设备不会跟着走。
+    </p>
+
+    <label class="block">
+      <span>自定义游戏表（JSON）</span>
+      <textarea id="gamesText" rows="10" spellcheck="false" placeholder='{
+  "我的游戏": {
+    "a0": true,
+    "a1": true,
+    "tiers": [
+      { "name": "Perfect", "role": "center", "dir": true, "ms": 70 },
+      { "name": "Good",    "role": "near",   "ms": 120 },
+      { "name": "Miss",    "role": "miss" }
+    ]
+  }
+}'></textarea>
+    </label>
+
+    <div class="row">
+      <button type="button" class="primary small" id="gamesApply">应用并保存</button>
+      <button type="button" class="ghost small" id="gamesReset">恢复内置</button>
+    </div>
+    <p class="err" id="gamesError" hidden></p>
+
+    <h3>现在认得的档位 / 判定区间</h3>
+    <div class="table-scroll">
+      <table class="table">
+        <thead>
+          <tr><th>游戏</th><th>档位</th><th>角色</th><th>早/晚</th><th>判定区间</th></tr>
+        </thead>
+        <tbody id="windowsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ⑤ 怎么测 -->
+  <section class="panel help" id="helpPanel">
+    <h2>⑤ 怎么测才准</h2>
+    <ol class="steps">
+      <li><b>先分型</b>：跟着音乐打的（听押）调<b>音频延迟</b>；跟着画面判定线打的（目押）调<b>判定延迟</b>。只调一栏。</li>
+      <li><b>至少测 3 个轴值</b>：比如 0 / +20 / +40，每个值打 2 局以上。同一个值打两局，是为了看波动。</li>
+      <li><b>确认设置真的生效了</b>：改完数字要按确认、回主菜单再进曲目，不然下一局用的还是旧值。</li>
+      <li><b>两局差超过 3 个百分点</b>：说明这局状态不稳，别急着下结论，再补一局。</li>
+      <li><b>看命中率和环带</b>，不要盯着「早和晚一样多」—— 早押的人天生就偏早，「早」永远比「晚」多。</li>
+    </ol>
+  </section>
+
+  <!-- ⑥ 关于 -->
+  <section class="panel about" id="aboutPanel">
+    <h2>⑥ 关于这个工具</h2>
+    <ul>
+      <li><b>算法</b>：把「轴值 → 命中率」拟成抛物线，取顶点当建议值；因为波动大，顶点旁边还会给一个重采样算出来的区间，而不是一个精确到毫秒的数字。</li>
+      <li><b>不联网</b>：所有计算都在你的浏览器里，数据存在 localStorage，关掉网页也还在。</li>
+      <li><b>会老实说「不够」</b>：少于 3 个轴值、或者每组只有 1 局，它只会说「数据不够」，不会硬编一个数字出来。</li>
+      <li><b>每个游戏自己声明档位</b>：每款游戏的判定档位都标了角色（正中 / 近 / 远 / 漏），并且单独标明「这一档的结算里有没有早 / 晚」——所以有的游戏只填总数，有的能填细分，界面自动跟着变。</li>
+      <li><b>主指标可选</b>：如果一款游戏有「大P / 小P」两个正中档，可以选「只用最严档」还是「正中档合并」，两种都能算、都能切换。</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <p>本地工具 · 不收集数据 · 欢迎 fork 改成自己的游戏</p>
+</footer>
+
+<script src="theme.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
