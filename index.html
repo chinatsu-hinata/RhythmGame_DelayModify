@@ -1,25 +1,14 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="arcade">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Offset Calibrator · 用结算数字反推最佳延迟</title>
 <meta name="description" content="填入每局各判定档位的数量（带早/晚的游戏还能填细分），用抛物线拟合反推你该把音频延迟或判定延迟调到多少。纯前端、不联网。">
-<script>
-  // 主题要在样式加载前定下来，否则会闪一下默认主题
-  try {
-    var saved = localStorage.getItem('offset-calibrator:theme');
-    if (saved === 'chinatsu' || saved === 'arcade') {
-      document.documentElement.setAttribute('data-theme', saved);
-    }
-  } catch (e) {}
-</script>
 <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-
-<button type="button" class="theme-btn" id="themeBtn" aria-label="切换配色风格">切换风格</button>
 
 <header class="hero">
   <div class="hero-inner">
@@ -205,7 +194,6 @@
   <p>本地工具 · 不收集数据 · 欢迎 fork 改成自己的游戏</p>
 </footer>
 
-<script src="theme.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>
 </body>

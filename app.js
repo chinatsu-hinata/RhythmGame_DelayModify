@@ -763,7 +763,7 @@
 
   /* ── 9. 图表 ────────────────────────────────────────────── */
 
-  // 颜色一律读 CSS 变量，换主题（data-theme）时图表会跟着变
+  // 颜色一律读 CSS 变量（改 styles.css 的 --chart-* 即可换图表配色）
   function cssVar(name, fallback) {
     try {
       var v = window.getComputedStyle(document.documentElement).getPropertyValue(name);
