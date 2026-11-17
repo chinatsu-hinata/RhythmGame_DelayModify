@@ -88,7 +88,6 @@
   var gamesApply = $('#gamesApply');
   var gamesReset = $('#gamesReset');
   var gamesError = $('#gamesError');
-  var windowsBody = $('#windowsBody');
 
   /* ── 3. 小工具 ──────────────────────────────────────────── */
 
@@ -328,29 +327,6 @@
       var custom = readCustomGames();
       gamesText.value = Object.keys(custom).length ? JSON.stringify(custom, null, 2) : '';
     }
-    renderWindowsTable();
-  }
-
-  // 每个游戏的每个档位：角色 + 有没有早/晚 + 判定区间（没填就显示 —）
-  function renderWindowsTable() {
-    if (!windowsBody) return;
-
-    var rows = [];
-    NAMES.forEach(function (name) {
-      var info = Core.gameInfo(GAMES, name);
-      info.tiers.forEach(function (t) {
-        rows.push('<tr>' +
-          '<td>' + esc(name) + '</td>' +
-          '<td>' + esc(t.name) + '</td>' +
-          '<td>' + esc(roleTag(t.role) || '—') + '</td>' +
-          '<td>' + (t.dir ? '有' : '—') + '</td>' +
-          '<td>' + (t.ms ? '±' + t.ms + ' ms' : '—') + '</td>' +
-          '</tr>');
-      });
-    });
-
-    windowsBody.innerHTML = rows.length ? rows.join('') :
-      '<tr><td colspan="5" class="empty">还没有游戏。</td></tr>';
   }
 
   function applyCustomGames() {
