@@ -88,6 +88,22 @@
     return ROLE_LABEL[r] ? r : '';
   }
 
+  // 判定窗口：单数 n → [n, n]（对称）；[早, 晚] → 两侧都取正数（写 [-150, 200] 也认）
+  function normalizeWindow(raw) {
+    if (raw == null) return null;
+    if (Array.isArray(raw)) {
+      if (raw.length < 2) return null;
+      var early = Math.abs(Number(raw[0]));
+      var late = Math.abs(Number(raw[1]));
+      if (!isFinite(early) || !isFinite(late)) return null;
+      if (!(early > 0) || !(late > 0)) return null;
+      return [early, late];
+    }
+    var n = Number(raw);
+    if (!isFinite(n) || n <= 0) return null;
+    return [n, n];
+  }
+
   function cleanTier(raw) {
     if (raw == null) return null;
 
@@ -101,7 +117,7 @@
       name = String(raw.name == null ? '' : raw.name).trim();
       role = roleOf(raw.role);
       dir = raw.dir === true || raw.hasDir === true || raw.direction === true;
-      ms = isFinite(Number(raw.ms)) && Number(raw.ms) > 0 ? Number(raw.ms) : null;
+      ms = normalizeWindow(raw.ms);
     } else {
       return null;
     }
@@ -172,7 +188,7 @@
     if (!g) return { a0: false, a1: false, tiers: [], centerCount: 0, hasDir: false };
 
     var tiers = g.tiers.map(function (t) {
-      return { name: t.name, role: t.role, dir: !!t.dir, ms: t.ms == null ? null : t.ms };
+      return { name: t.name, role: t.role, dir: !!t.dir, ms: t.ms ? t.ms.slice() : null };
     });
 
     return {

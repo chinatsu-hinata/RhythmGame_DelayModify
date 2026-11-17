@@ -298,12 +298,19 @@
     }).join('');
   }
 
+  // [早, 晚] → ' ±35ms' 或 ' −150 / +200ms'
+  function windowText(ms) {
+    if (!ms) return '';
+    if (ms[0] === ms[1]) return ' ±' + ms[0] + 'ms';
+    return ' −' + ms[0] + ' / +' + ms[1] + 'ms';
+  }
+
   function updateGameHint() {
     var info = Core.gameInfo(GAMES, state.game);
     var parts = ['判定档位：' + info.tiers.map(function (t) {
       return t.name + (t.role ? '（' + roleTag(t.role) + '）' : '') +
         (t.dir ? '＋早/晚' : '') +
-        (t.ms ? ' ±' + t.ms + 'ms' : '');
+        windowText(t.ms);
     }).join(' / ')];
 
     if (!info.hasDir) parts.push('这个游戏的结算里没有早/晚细分 → 只填各档数量');
