@@ -5,7 +5,7 @@
  *   2. DOM 引用           启动时查一次，后面都用变量
  *   3. 小工具             esc / num / pct / signed / readInt
  *   4. 数据层             读 localStorage、写、按游戏过滤
- *   5. 表单渲染           判定档位（含早/晚）/ 轴值 / 轴单选 / 主指标档
+ *   5. 表单渲染           判定档位（每档一个数字）/ 轴值 / 轴单选 / 主指标档
  *   6. 提交与按钮事件
  *   7. 表格               记录表 + 分组表
  *   8. 结论               三态：already-fine / insufficient / peak
@@ -135,7 +135,7 @@
 
   /* ── 4. 数据层 ──────────────────────────────────────────── */
 
-  // 一局：{ id, game, tiers:[{n,f,s}], a0, a1 }
+  // 一局：{ id, game, tiers:[{n}], a0, a1 }
   // 老数据（counts / early / late）自动搬过来，免得旧记录突然消失
   function normalizeRun(r) {
     if (!r || typeof r !== 'object') return null;
@@ -147,25 +147,12 @@
     var src = Array.isArray(r.tiers) ? r.tiers : [];
 
     var legacyCounts = Array.isArray(r.counts) ? r.counts : null;
-    var legacyEarly = clampCount(r.early);
-    var legacyLate = clampCount(r.late);
 
     var tiers = info.tiers.map(function (t, i) {
       var raw = (!legacyCounts && src[i]) || {};
       var n = legacyCounts ? clampCount(legacyCounts[i]) : clampCount(raw.n);
-      var f = t.dir ? clampCount(raw.f) : 0;
-      var s = t.dir ? clampCount(raw.s) : 0;
-      return { n: n, f: f, s: s };
+      return { n: n };
     });
-
-    // 老数据把 Early / Late 记在「头档」上，搬进第一个带方向的档位
-    if (legacyCounts && (legacyEarly || legacyLate)) {
-      var dirIdx = info.tiers.findIndex(function (t) { return t.dir; });
-      if (dirIdx >= 0) {
-        tiers[dirIdx].f = legacyEarly;
-        tiers[dirIdx].s = legacyLate;
-      }
-    }
 
     return {
       id: r.id || uid(),
@@ -223,17 +210,13 @@
       '</div>';
   }
 
-  // 判定档位：每档一个主输入框；带方向的档位后面跟「早 / 晚」两个小框
+  // 判定档位：每档一个输入框（结算上显示多少就填多少）
   function renderTierFields() {
     var info = Core.gameInfo(GAMES, state.game);
 
     tierFields.innerHTML = info.tiers.map(function (t, i) {
-      var html = field('t' + i, t.name, '（' + roleTag(t.role) + '）', '');
-      if (t.dir) {
-        html += field('f' + i, t.name + ' · 早', 'Fast', '', { cls: 'sub' });
-        html += field('s' + i, t.name + ' · 晚', 'Late', '', { cls: 'sub' });
-      }
-      return html;
+      var tag = '（' + roleTag(t.role) + (t.nest ? '·含上档' : '') + '）';
+      return field('t' + i, t.name, tag, '');
     }).join('');
   }
 
@@ -308,12 +291,15 @@
   function updateGameHint() {
     var info = Core.gameInfo(GAMES, state.game);
     var parts = ['判定档位：' + info.tiers.map(function (t) {
-      return t.name + (t.role ? '（' + roleTag(t.role) + '）' : '') +
-        (t.dir ? '＋早/晚' : '') +
+      return t.name + (t.role ? '（' + roleTag(t.role) + (t.nest ? '·含上档' : '') + '）' : '') +
+        (t.dir ? '＋含早/晚' : '') +
         windowText(t.ms);
     }).join(' / ')];
 
-    if (!info.hasDir) parts.push('这个游戏的结算里没有早/晚细分 → 只填各档数量');
+    if (info.hasDir) parts.push('标着「含早/晚」的档位：填结算上那一整档的数字就行，不用拆开');
+    if (info.tiers.some(function (t) { return t.nest; })) {
+      parts.push('标着「含上档」的档位：照结算画面填原数字，程序自己减掉上面几档');
+    }
     if (!info.a1) parts.push('不支持判定延迟 → 只标定音频延迟');
     if (!info.a0) parts.push('不支持音频延迟 → 只标定判定延迟');
     if (info.centerCount > 1) parts.push('有多个正中档 → 可以选主指标用哪一档');
@@ -408,24 +394,26 @@
   function collectTiers() {
     var info = Core.gameInfo(GAMES, state.game);
     var tiers = [];
+    var sum = 0;
 
     for (var i = 0; i < info.tiers.length; i++) {
       var t = info.tiers[i];
       var n = readInt('t' + i);
       if (isNaN(n)) return { error: '「' + t.name + '」要填 0 或正整数。' };
 
-      var f = 0;
-      var s = 0;
-      if (t.dir) {
-        f = readInt('f' + i);
-        s = readInt('s' + i);
-        if (isNaN(f) || isNaN(s)) return { error: '「' + t.name + '」的早/晚要填 0 或正整数。' };
-        if (f + s > n) return { error: '「' + t.name + '」的早 + 晚不能超过这一档的数量（' + n + '）。' };
+      // nest 档的数字包含上面几档：填的是结算原数字，这里只校验它不能比被包含的更小
+      if (t.nest && n < sum) {
+        return {
+          error: '「' + t.name + '」填了 ' + n + '，但它包含上面 ' + sum +
+            ' 个，数字不可能更小 —— 再对一下结算画面。'
+        };
       }
-      tiers.push({ n: n, f: f, s: s });
+
+      sum += t.nest ? Math.max(0, n - sum) : n;
+      tiers.push({ n: n });
     }
 
-    var total = tiers.reduce(function (a, x) { return a + x.n; }, 0);
+    var total = sum;
     if (total <= 0) return { error: '所有判定都是 0 —— 至少填一个。' };
 
     return { tiers: tiers };
@@ -543,31 +531,15 @@
       : [[0, 0.86], [20, 0.90], [40, 0.82]];
 
     var centerIdx = info.tiers.findIndex(function (t) { return t.role === 'center'; });
-    var dirIdx = info.tiers.findIndex(function (t) { return t.dir; });
 
     plan.forEach(function (row) {
       var total = 1000;
       var p = row[1];
-      var tiers = info.tiers.map(function () { return { n: 0, f: 0, s: 0 }; });
+      var tiers = info.tiers.map(function () { return { n: 0 }; });
 
-      if (dirIdx >= 0 && dirIdx === centerIdx) {
-        // 早/晚就是正中档的内部细分：先放进去，再从命中率里扣掉
-        var ring = Math.round(total * 0.04);
-        var f = Math.round(ring * 0.7);
-        tiers[centerIdx] = { n: Math.round(total * p) + ring, f: f, s: ring - f };
-        var used = tiers[centerIdx].n;
-        tiers[info.tiers.length - 1].n = Math.max(0, total - used);
-      } else {
-        tiers[centerIdx].n = Math.round(total * p);
-        var used2 = tiers[centerIdx].n;
-        if (dirIdx >= 0) {
-          var ring2 = Math.round(total * 0.06);
-          var f2 = Math.round(ring2 * 0.7);
-          tiers[dirIdx] = { n: ring2, f: f2, s: ring2 - f2 };
-          used2 += ring2;
-        }
-        tiers[info.tiers.length - 1].n = Math.max(0, total - used2);
-      }
+      tiers[centerIdx].n = Math.round(total * p);
+      var used = tiers[centerIdx].n;
+      tiers[info.tiers.length - 1].n = Math.max(0, total - used);
 
       state.runs.push({
         id: uid(),
@@ -596,7 +568,7 @@
     var runs = currentRuns();
 
     var head = ['#'].concat(info.tiers.map(function (t) {
-      return t.name + (t.dir ? '（早/晚）' : '');
+      return t.name + (t.dir ? '（含早/晚）' : '');
     })).concat(['命中率', '环带']);
     if (sup.a0) head.push('音频延迟');
     if (sup.a1) head.push('判定延迟');
@@ -618,11 +590,9 @@
       var cells = ['<td>' + (idx + 1) + '</td>'];
 
       m.rows.forEach(function (r) {
-        if (r.dir) {
-          cells.push('<td>' + r.n + '<span class="tiny">早' + r.f + ' / 晚' + r.s + '</span></td>');
-        } else {
-          cells.push('<td>' + r.n + '</td>');
-        }
+        var cell = '' + r.raw;
+        if (r.nest) cell += '<span class="tiny">净 ' + r.n + '</span>';
+        cells.push('<td>' + cell + '</td>');
       });
 
       cells.push('<td>' + pct(m.p) + '</td>');

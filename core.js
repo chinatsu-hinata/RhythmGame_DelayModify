@@ -8,30 +8,26 @@
  *       "a0": true,              // 支持音频延迟
  *       "a1": true,              // 支持判定延迟
  *       "tiers": [
- *         { "name": "JUSTICE", "role": "center" },              // 正中档
- *         { "name": "ATTACK",  "role": "near", "dir": true },   // 带早/晚细分
+ *         { "name": "JUSTICE", "role": "center", "dir": true },  // 正中档，这档数字里含早/晚
+ *         { "name": "ATTACK",  "role": "near" },
  *         { "name": "MISS",    "role": "miss" }
  *       ]
  *     }
  *   }
  *   role：center 正中 / near 近 / far 远 / miss 漏
- *   dir ：这一档的结算里能不能看到 fast / late（早 / 晚）
+ *   dir ：纯标记 —— 这一档的数字里是否包含 fast / late（早 / 晚）。
+ *         不产生额外输入框，也不参与换算；玩家只填结算上显示的数字。
  *
  *   老格式仍然能读：[[支持音频, 支持判定], ["Perfect", "Good", "Bad", "Miss"]]
  *   会按「第一个 = 正中、最后一个 = 漏、中间 = 近」自动补 role。
  *
- *   内置四款里，CHUNITHM 的 JUSTICE 与 maimai DX 的 Perfect 带 dir：
- *   它们结算里的 Early / Late 就是最严档的内部细分；Phigros / Arcaea 没有细分。
- *
  * ── 一局 = 一个 run ──────────────────────────────────────────────
- *   { game: 'CHUNITHM', tiers: [{ n: 1050, f: 0, s: 0 }, { n: 30, f: 21, s: 9 }, { n: 10 }],
- *     a0: 0, a1: 30 }
- *   n = 这一档的总数；f / s = 这一档里偏早 / 偏晚的个数（只有 dir 档才有意义）
+ *   { game: 'CHUNITHM', tiers: [{ n: 1050 }, { n: 30 }, { n: 10 }], a0: 0, a1: 30 }
+ *   n = 这一档的数量（就是结算上显示的数字，不拆早/晚）
  *
  * ── 指标 ────────────────────────────────────────────────────────
- *   命中率 p    = (正中档 − 正中档里的早/晚) / 总音符      ← strict 只算最严档，inclusive 合所有正中档
- *   环带占比    = (总音符 − 正中档) / 总音符                ← 丢档率，越小越稳
- *   早/晚比 W   = Σ早 / (Σ早 + Σ晚)                        ← 只用来判方向，不用来反解
+ *   命中率 p    = 正中档数量 / 总音符        ← strict 只算最严档，inclusive 合所有正中档
+ *   环带占比    = (总音符 − 正中档) / 总音符  ← 丢档率，越小越稳
  */
 (function (root) {
   'use strict';
@@ -121,7 +117,7 @@
     "Muse Dash/喵斯快跑":{
       a0: true, a1: false,
       tiers: [
-        {name:"Perfect", role:"center",dir:true,ms:50},
+        {name:"Perfect", role:"center",ms:50},
         { name: 'Great', role: 'near',ms:130},
         { name: 'Miss', role: 'miss'}
       ]
@@ -161,23 +157,26 @@
   function cleanTier(raw) {
     if (raw == null) return null;
 
-    var name, role, dir, ms;
+    var name, role, dir, ms, nest;
     if (typeof raw === 'string') {
       name = raw.trim();
       role = '';
       dir = false;
       ms = null;
+      nest = false;
     } else if (typeof raw === 'object') {
       name = String(raw.name == null ? '' : raw.name).trim();
       role = roleOf(raw.role);
       dir = raw.dir === true || raw.hasDir === true || raw.direction === true;
       ms = normalizeWindow(raw.ms);
+      // nest：「这一档的数字里包含上面（更窄）那几档」，填结算原数字即可，程序自动做减法
+      nest = raw.nest === true || raw.contains === true || raw.overlap === true;
     } else {
       return null;
     }
     if (!name) return null;
 
-    return { name: name, role: role, dir: !!dir, ms: ms };
+    return { name: name, role: role, dir: !!dir, ms: ms, nest: !!nest };
   }
 
   /* ── 游戏表 ──────────────────────────────────────────────── */
@@ -242,7 +241,10 @@
     if (!g) return { a0: false, a1: false, tiers: [], centerCount: 0, hasDir: false };
 
     var tiers = g.tiers.map(function (t) {
-      return { name: t.name, role: t.role, dir: !!t.dir, ms: t.ms ? t.ms.slice() : null };
+      return {
+        name: t.name, role: t.role, dir: !!t.dir, nest: !!t.nest,
+        ms: t.ms ? t.ms.slice() : null
+      };
     });
 
     return {
@@ -292,18 +294,15 @@
 
   function normalizeRows(run, info) {
     var src = run && Array.isArray(run.tiers) ? run.tiers : [];
+    var seen = 0;                     // 上面几档已经数过的数量（给 nest 档做减法）
 
     return info.tiers.map(function (t, i) {
       var raw = src[i] || {};
       var n = toInt(raw.n);
-      var f = t.dir ? toInt(raw.f) : 0;
-      var s = t.dir ? toInt(raw.s) : 0;
-
-      if (f + s > n) {                      // 数据脏了：早+晚按这一档封顶
-        s = Math.max(0, n - f);
-        if (f + s > n) f = Math.max(0, n - s);
-      }
-      return { name: t.name, role: t.role, dir: t.dir, n: n, f: f, s: s };
+      // nest 档：玩家填的是结算原数字（包含上面更窄的档），这里换成「只属于它自己的部分」
+      var eff = t.nest ? Math.max(0, n - seen) : n;
+      seen += eff;
+      return { name: t.name, role: t.role, dir: t.dir, nest: t.nest, n: eff, raw: n };
     });
   }
 
@@ -314,19 +313,14 @@
     var total = rows.reduce(function (a, r) { return a + r.n; }, 0);
 
     var centers = rows.filter(function (r) { return r.role === 'center'; });
-    var strict = centers[0] || { n: 0, f: 0, s: 0 };
+    var strict = centers[0] || { n: 0 };
 
     var centerN = centers.reduce(function (a, r) { return a + r.n; }, 0);
-    var centerF = centers.reduce(function (a, r) { return a + r.f; }, 0);
-    var centerS = centers.reduce(function (a, r) { return a + r.s; }, 0);
+    var hasDir = info.hasDir;             // 只是“这档含早/晚”的标记，不再参与换算
 
-    var dirF = 0;
-    var dirS = 0;
-    rows.forEach(function (r) { dirF += r.f; dirS += r.s; });
-    var hasDir = (dirF + dirS) > 0;
-
-    var pStrict = total > 0 ? (strict.n - strict.f - strict.s) / total : 0;
-    var pInclusive = total > 0 ? (centerN - centerF - centerS) / total : 0;
+    // 命中率 = 正中档占比（不扣早/晚：玩家填的就是结算上的数字）
+    var pStrict = total > 0 ? strict.n / total : 0;
+    var pInclusive = total > 0 ? centerN / total : 0;
 
     var m = mode === 'inclusive' && centers.length > 1 ? 'inclusive' : 'strict';
     var edge = m === 'inclusive' ? centerN : strict.n;
@@ -337,14 +331,12 @@
       total: total,
       centerN: centerN,
       strictN: strict.n,
-      dirF: dirF,
-      dirS: dirS,
       hasDir: hasDir,
       p: m === 'inclusive' ? pInclusive : pStrict,
       pStrict: pStrict,
       pInclusive: pInclusive,
       ring: total > 0 ? (total - edge) / total : 0,
-      w: hasDir ? dirF / (dirF + dirS) : NaN,
+      w: NaN,
       mode: m,
       centerCount: centers.length
     };
@@ -371,8 +363,6 @@
         sd = Math.sqrt(ss / (n - 1));
       }
       var ringMean = list.reduce(function (a, m) { return a + m.ring; }, 0) / n;
-      var f = list.reduce(function (a, m) { return a + m.dirF; }, 0);
-      var l = list.reduce(function (a, m) { return a + m.dirS; }, 0);
 
       groups.push({
         axis: x,
@@ -380,7 +370,7 @@
         mean: mean,
         sd: sd,
         ring: ringMean,
-        w: f + l > 0 ? f / (f + l) : NaN,
+        w: NaN,
         spread: Math.max.apply(null, list.map(function (m) { return m.p; })) -
           Math.min.apply(null, list.map(function (m) { return m.p; }))
       });
