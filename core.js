@@ -71,7 +71,7 @@
       ]
     },
     'Vivid/Stasis':{
-      a0:true,a1:true,
+      a0:true,a1:true,fl:true,
       tiers:[
         {name:'Critical',role:'center',dir:true},
         {name:'Great',role:'near'},
@@ -80,7 +80,7 @@
       ]
     },
     "Project SEKAI/世界计划":{
-      a0:false,a1:true,fl:true,
+      a0:false,a1:true,
       tiers:[
         { name: 'Perfect', role: 'center'},
         { name: 'Great', role: 'near' },
