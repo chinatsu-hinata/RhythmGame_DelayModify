@@ -58,7 +58,8 @@
     'CHUNITHM': {
       a0: true, a1: true,
       tiers: [
-        { name: 'JUSTICE', role: 'center', dir: true },   // 结算里的 Early / Late 是 JUSTICE 内部的细分
+        {name:"Justice Critical", role:"center"},
+        { name: 'JUSTICE', role: 'center'},   // 结算里的 Early / Late 是 JUSTICE 内部的细分
         { name: 'ATTACK', role: 'near' },
         { name: 'MISS', role: 'miss' }
       ]
@@ -66,7 +67,26 @@
     'maimai DX': {
       a0: false, a1: true,
       tiers: [
-        { name: 'Perfect', role: 'center', dir: true },
+        {name:"Critical", role:"center"},
+        { name: 'Perfect', role: 'center'},
+        { name: 'Great', role: 'near' },
+        { name: 'Good', role: 'far' },
+        { name: 'Miss', role: 'miss' }
+      ]
+    },
+    'Vivid/Stasis':{
+      a0:true,a1:true,
+      tiers:[
+        {name:'Critical',role:'center',dir:true},
+        {name:'Great',role:'near'},
+        {name: 'Good', role: 'far' },
+        {name: 'Miss', role: 'miss' }
+      ]
+    },
+    "Project SEKAI":{
+      a0:false,a1:true,
+      tiers:[
+        { name: 'Perfect', role: 'center'},
         { name: 'Great', role: 'near' },
         { name: 'Good', role: 'far' },
         { name: 'Miss', role: 'miss' }
