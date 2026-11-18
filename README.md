@@ -1,1 +1,23 @@
-# Hi
+# 音游延迟调整器 Rhythm Game Delay Modifier
+
+## ⚠ AI声明 AI Declaration
+此项目大部分代码为AI生成，仅进行了极小部分的人工修改
+
+This project uses vibe coding as the main way to write program, with just a little modification done by human.
+
+## 关于这个作品 About
+
+这个作品可以通过在音游结算中
+
+## 版本 Version
+
+### Version BETA-0.0.1
+2026-11-18
+
+初版，对比AI的vibe coding版增加了对少量音游的支持
+
+First edition. Just add a few rhythm game support.
+
+## 原理 How does it work?
+
+略，我也在研究.jpg
