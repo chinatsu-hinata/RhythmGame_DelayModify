@@ -47,7 +47,7 @@
         { name: 'Miss', role: 'miss' }
       ]
     },
-    'Arcaea': {
+    'Arcaea/韵律源点': {
       a0: true, a1: false,
       tiers: [
         { name: 'Pure', role: 'center' },
@@ -55,7 +55,7 @@
         { name: 'Lost', role: 'miss' }
       ]
     },
-    'CHUNITHM': {
+    'CHUNITHM/中二节奏': {
       a0: true, a1: true,
       tiers: [
         {name:"Justice Critical", role:"center"},
@@ -64,7 +64,7 @@
         { name: 'MISS', role: 'miss' }
       ]
     },
-    'maimai DX': {
+    'maimaiDX/舞萌DX': {
       a0: false, a1: true,
       tiers: [
         {name:"Critical", role:"center"},
@@ -83,13 +83,47 @@
         {name: 'Miss', role: 'miss' }
       ]
     },
-    "Project SEKAI":{
+    "Project SEKAI/世界计划":{
       a0:false,a1:true,
       tiers:[
         { name: 'Perfect', role: 'center'},
         { name: 'Great', role: 'near' },
         { name: 'Good', role: 'far' },
         { name: 'Miss', role: 'miss' }
+      ]
+    },
+    "Rotaeno/旋转音律":{
+      a0:true,a1:false,
+      tiers:[
+        {name:"Perfect+",role:'center'},
+        { name: 'Perfect', role: 'near'},
+        { name: 'Good', role: 'far' },
+        { name: 'Miss', role: 'miss' }
+      ]
+    },
+    "O.N.G.E.K.I./音击":{
+      a0: true, a1: true,
+      tiers: [
+        {name:"Justice Critical", role:"center"},
+        { name: 'JUSTICE', role: 'center'}, 
+        { name: 'ATTACK', role: 'near' },
+        { name: 'MISS', role: 'miss' }
+      ]
+    },
+    "Paradigm Reboot/范式起源":{
+      a0: true, a1: true,
+      tiers: [
+        {name:"Decrypted", role:"center"},
+        { name: 'Received', role: 'near' },
+        { name: 'MISS', role: 'miss' }
+      ]
+    },
+    "Muse Dash/喵斯快跑":{
+      a0: true, a1: false,
+      tiers: [
+        {name:"Perfect", role:"center",dir:true,ms:50},
+        { name: 'Great', role: 'near',ms:130},
+        { name: 'Miss', role: 'miss'}
       ]
     }
   };
