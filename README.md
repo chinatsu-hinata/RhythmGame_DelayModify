@@ -18,6 +18,14 @@ This project uses vibe coding as the main way to write program, with just a litt
 
 First edition. Just add a few rhythm game support.
 
+## 测试 Test Cases
+
+### 1. Muse Dash (电脑端/PC)
+
+
+
+
+
 ## 原理 How does it work?
 
 略，我也在研究.jpg
