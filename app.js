@@ -109,9 +109,13 @@
 
   function pct(v, digits) { return (v * 100).toFixed(digits == null ? 1 : digits) + '%'; }
 
+  // 偏移量显示：整数就整数，带小数就保留 1 位（负数照常带 - 号）
   function signed(v) {
-    var r = Math.round(v);
-    return (r > 0 ? '+' : '') + r;
+    var n = Number(v);
+    if (!isFinite(n)) return '—';
+    var r = Math.round(n);
+    var text = Math.abs(n - r) < 1e-9 ? String(r) : n.toFixed(1);
+    return (n > 0 && text[0] !== '-') ? '+' + text : text;
   }
 
   // 读一个整数输入框：空 → 0；非法 → NaN（由调用方报错）
@@ -207,14 +211,17 @@
 
   function field(id, label, hint, value, extra) {
     var step = extra && extra.step ? extra.step : '1';
-    var min = extra && extra.min != null ? extra.min : 0;
+    // min 显式传 null → 不写 min 属性（允许负数）
+    var min = extra && extra.min !== undefined ? extra.min : 0;
+    var mode = extra && extra.inputmode ? extra.inputmode : 'numeric';
     var cls = extra && extra.cls ? ' ' + extra.cls : '';
     return '<div class="field' + cls + '">' +
       '<label for="' + id + '">' + esc(label) +
       (hint ? ' <span class="unit">' + esc(hint) + '</span>' : '') +
       '</label>' +
-      '<input id="' + id + '" name="' + id + '" type="number" inputmode="numeric" step="' + step + '"' +
-      ' min="' + min + '" value="' + (value == null ? '' : esc(value)) + '">' +
+      '<input id="' + id + '" name="' + id + '" type="number" inputmode="' + mode + '" step="' + step + '"' +
+      (min == null ? '' : ' min="' + min + '"') +
+      ' value="' + (value == null ? '' : esc(value)) + '">' +
       '</div>';
   }
 
@@ -245,9 +252,11 @@
 
   function renderAxisFields() {
     var sup = Core.axisSupport(GAMES, state.game);
+    // 延迟可以是负数、也可以带小数（不同游戏单位不一样，这里不做限制）
+    var opt = { min: null, step: 'any', inputmode: 'decimal' };
     var html = '';
-    if (sup.a0) html += field('fA0', '音频延迟', '', '');
-    if (sup.a1) html += field('fA1', '判定延迟', '', '');
+    if (sup.a0) html += field('fA0', '音频延迟', '', '', opt);
+    if (sup.a1) html += field('fA1', '判定延迟', '', '', opt);
     axisFields.innerHTML = html;
   }
 

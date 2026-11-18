@@ -68,7 +68,7 @@
       <p class="error" id="formError" hidden></p>
     </form>
 
-    <p class="hint small">每一档填结算上显示的数字。结算有 <b>Fast / Late</b> 的游戏（游戏表里写了 <code>fl: true</code>）会多出一对格子，填整局的数字——它们会从「命中总数」里扣掉；留空也可以，只是命中率会偏高一点。</p>
+    <p class="hint small">每一档填结算上显示的数字。结算有 <b>Fast / Late</b> 的游戏（游戏表里写了 <code>fl: true</code>）会多出一对格子，填整局的数字——它们会从「命中总数」里扣掉；留空也可以，只是命中率会偏高一点。延迟那两栏可以填<b>负数</b>，也可以带<b>小数</b>。</p>
   </section>
 
   <section class="panel">
@@ -193,6 +193,7 @@
   <p>本地工具 · 不收集数据 · 欢迎 fork 改成自己的游戏</p>
 </footer>
 
+<!-- 不写 ?v= 版本号：方便在 GitHub 网页里直接改文件；GitHub Pages 缓存约 10 分钟，改完刷新未生效就 Ctrl+F5 -->
 <script src="core.js"></script>
 <script src="app.js"></script>
 </body>
