@@ -7,7 +7,7 @@ This project uses vibe coding as the main way to write program, with just a litt
 
 ## 关于这个作品 About
 
-这个作品可以通过在音游结算中
+这个作品可以通过在音游结算中的Fast/Late数量来判断你需要怎么样调你的判定/音频延迟
 
 ## 版本 Version
 
