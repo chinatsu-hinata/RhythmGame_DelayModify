@@ -115,7 +115,7 @@
       ]
     },
     "Muse Dash/喵斯快跑":{
-      a0: true, a1: false,
+      a0: true, a1: false,fl:true,
       tiers: [
         {name:"Perfect", role:"center",ms:50},
         { name: 'Great', role: 'near',ms:130},
