@@ -52,7 +52,7 @@
       ]
     },
     'CHUNITHM/中二节奏': {
-      a0: true, a1: true,
+      a0: true, a1: true, fl: true,
       tiers: [
         {name:"Justice Critical", role:"center"},
         { name: 'JUSTICE', role: 'center'},   // 结算里的 Early / Late 是 JUSTICE 内部的细分
@@ -61,7 +61,7 @@
       ]
     },
     'maimaiDX/舞萌DX': {
-      a0: false, a1: true,
+      a0: false, a1: true, fl: true,
       tiers: [
         {name:"Critical", role:"center"},
         { name: 'Perfect', role: 'center'},
@@ -80,7 +80,7 @@
       ]
     },
     "Project SEKAI/世界计划":{
-      a0:false,a1:true,
+      a0:false,a1:true,fl:true,
       tiers:[
         { name: 'Perfect', role: 'center'},
         { name: 'Great', role: 'near' },
@@ -89,7 +89,7 @@
       ]
     },
     "Rotaeno/旋转音律":{
-      a0:true,a1:false,
+      a0:true,a1:false,fl:true,
       tiers:[
         {name:"Perfect+",role:'center'},
         { name: 'Perfect', role: 'near'},
@@ -98,11 +98,11 @@
       ]
     },
     "O.N.G.E.K.I./音击":{
-      a0: true, a1: true,
+      a0: true, a1: true, fl: true,
       tiers: [
-        {name:"Justice Critical", role:"center"},
-        { name: 'JUSTICE', role: 'center'}, 
-        { name: 'ATTACK', role: 'near' },
+        {name:"Critical Break", role:"center"},
+        { name: 'Break', role: 'center'}, 
+        { name: 'Hit', role: 'near' },
         { name: 'MISS', role: 'miss' }
       ]
     },
@@ -192,6 +192,7 @@
       var entry = raw[key];
       var a0 = false;
       var a1 = false;
+      var fl = false;
       var list = [];
       var legacy = false;
 
@@ -207,6 +208,8 @@
       } else if (entry && typeof entry === 'object') {
         a0 = entry.a0 === true || entry.audio === true;
         a1 = entry.a1 === true || entry.judgment === true || entry.visual === true;
+        // fl：结算画面上有没有「整局一对」的 Fast / Late 计数（与档位的 dir 是两件事）
+        fl = entry.fl === true || entry.fastLate === true || entry.hasFastLate === true;
         if (Array.isArray(entry.tiers)) list = entry.tiers;
         else if (Array.isArray(entry.judging)) { list = entry.judging; legacy = true; }
       } else {
@@ -228,7 +231,10 @@
       }
       if (!tiers.some(function (t) { return t.role === 'center'; })) tiers[0].role = 'center';
 
-      out[name] = { a0: a0, a1: a1, tiers: tiers };
+      // 兼容：老表只标了档位级 dir、没写游戏级 fl —— 那就当作「这局有 Fast/Late」
+      if (!fl) fl = tiers.some(function (t) { return t.dir; });
+
+      out[name] = { a0: a0, a1: a1, tiers: tiers, fl: fl };
     });
 
     return out;
@@ -238,7 +244,7 @@
 
   function gameInfo(games, game) {
     var g = games && games[game];
-    if (!g) return { a0: false, a1: false, tiers: [], centerCount: 0, hasDir: false };
+    if (!g) return { a0: false, a1: false, tiers: [], centerCount: 0, hasDir: false, fl: false };
 
     var tiers = g.tiers.map(function (t) {
       return {
@@ -252,7 +258,8 @@
       a1: !!g.a1,
       tiers: tiers,
       centerCount: tiers.filter(function (t) { return t.role === 'center'; }).length,
-      hasDir: tiers.some(function (t) { return t.dir; })
+      hasDir: tiers.some(function (t) { return t.dir; }),
+      fl: !!g.fl
     };
   }
 
@@ -327,8 +334,8 @@
     var strictN = centers[0] ? centers[0].n : 0;
 
     var hasDir = info.hasDir;
-    // 游戏声明「这档带早/晚」但一个都没填：命中率会偏高，界面要给提示
-    var partial = hasDir && !directional && hitN > 0;
+    // 游戏声明「结算有 Fast/Late」（游戏级 fl）但一个都没填：命中率会偏高，界面要给提示
+    var partial = info.fl && !directional && hitN > 0;
 
     // 有 Fast/Late 时：正中 = 命中总数 − 早 − 晚（所有命中档一起看）
     // 没有时：沿用「正中档 / 总音符」，并可切「只用最严档 / 正中档合并」

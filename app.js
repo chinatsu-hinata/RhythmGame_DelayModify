@@ -228,11 +228,11 @@
     }).join('');
   }
 
-  // 整局一对 Fast / Late（只有游戏声明「结算会显示早/晚」时才出现）
+  // 整局一对 Fast / Late（只有游戏声明 fl:true「结算会显示早/晚」时才出现）
   function renderDirFields() {
     if (!dirFields) return;
     var info = Core.gameInfo(GAMES, state.game);
-    if (!info.hasDir) {
+    if (!info.fl) {
       dirFields.hidden = true;
       dirFields.innerHTML = '';
       return;
@@ -320,6 +320,7 @@
     }).join(' / ')];
 
     if (info.hasDir) parts.push('标着「含早/晚」的档位：填结算上那一整档的数字就行，不用拆开');
+    if (info.fl) parts.push('结算有 Fast / Late → 记一局时会出现一对格子，填整局的数字，留空也可以');
     if (info.tiers.some(function (t) { return t.nest; })) {
       parts.push('标着「含上档」的档位：照结算画面填原数字，程序自己减掉上面几档');
     }
@@ -616,8 +617,8 @@
         id: uid(),
         game: state.game,
         tiers: tiers,
-        f: info.hasDir ? f : 0,
-        s: info.hasDir ? s : 0,
+        f: info.fl ? f : 0,
+        s: info.fl ? s : 0,
         a0: axisKey === 'a0' ? row[0] : 0,
         a1: axisKey === 'a1' ? row[0] : 0
       });
