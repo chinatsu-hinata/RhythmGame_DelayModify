@@ -68,6 +68,7 @@
   var axisRadios = $('#axisRadios');
   var modePicker = $('#modePicker');
   var modeRadios = $('#modeRadios');
+  var dirFields = $('#dirFields');
   var form = $('#runForm');
   var formError = $('#formError');
   var verdictLabel = $('#verdictLabel');
@@ -135,7 +136,8 @@
 
   /* ── 4. 数据层 ──────────────────────────────────────────── */
 
-  // 一局：{ id, game, tiers:[{n}], a0, a1 }
+  // 一局：{ id, game, tiers:[{n}], f?, s?, a0, a1 }
+  // f/s 是整局一对（覆盖所有命中档），可以缺省
   // 老数据（counts / early / late）自动搬过来，免得旧记录突然消失
   function normalizeRun(r) {
     if (!r || typeof r !== 'object') return null;
@@ -154,10 +156,16 @@
       return { n: n };
     });
 
+    // 老数据的 early / late 直接搬到整局一层
+    var f = clampCount(r.f != null ? r.f : r.early);
+    var s = clampCount(r.s != null ? r.s : r.late);
+
     return {
       id: r.id || uid(),
       game: game,
       tiers: tiers,
+      f: f,
+      s: s,
       a0: num(r.a0),
       a1: num(r.a1)
     };
@@ -218,6 +226,21 @@
       var tag = '（' + roleTag(t.role) + (t.nest ? '·含上档' : '') + '）';
       return field('t' + i, t.name, tag, '');
     }).join('');
+  }
+
+  // 整局一对 Fast / Late（只有游戏声明「结算会显示早/晚」时才出现）
+  function renderDirFields() {
+    if (!dirFields) return;
+    var info = Core.gameInfo(GAMES, state.game);
+    if (!info.hasDir) {
+      dirFields.hidden = true;
+      dirFields.innerHTML = '';
+      return;
+    }
+    dirFields.hidden = false;
+    dirFields.innerHTML =
+      field('runF', 'Fast', '整局，可留空') +
+      field('runS', 'Late', '整局，可留空');
   }
 
   function renderAxisFields() {
@@ -409,14 +432,41 @@
         };
       }
 
-      sum += t.nest ? Math.max(0, n - sum) : n;
+      var eff = t.nest ? Math.max(0, n - sum) : n;
+      sum += eff;
       tiers.push({ n: n });
     }
 
     var total = sum;
     if (total <= 0) return { error: '所有判定都是 0 —— 至少填一个。' };
 
-    return { tiers: tiers };
+    // 整局一对 Fast / Late：覆盖所有命中档，所以不能超过「命中总数」
+    var info2 = info;
+    var missIdx = -1;
+    info2.tiers.forEach(function (t, i) { if (t.role === 'miss') missIdx = i; });
+
+    var f = readInt('runF');
+    var s = readInt('runS');
+    if (isNaN(f)) return { error: '「Fast」要填 0 或正整数（可以留空）。' };
+    if (isNaN(s)) return { error: '「Late」要填 0 或正整数（可以留空）。' };
+
+    var hitSum = 0;
+    var seen2 = 0;
+    tiers.forEach(function (x, i) {
+      var tt = info.tiers[i];
+      var eff = tt.nest ? Math.max(0, x.n - seen2) : x.n;
+      seen2 += eff;
+      if (tt.role !== 'miss') hitSum += eff;
+    });
+
+    if (f + s > hitSum) {
+      return {
+        error: '命中一共 ' + hitSum + ' 个，但 Fast + Late 填了 ' + (f + s) +
+          ' —— 减不回来，再对一下结算画面。'
+      };
+    }
+
+    return { tiers: tiers, f: f, s: s };
   }
 
   function submitRun() {
@@ -434,14 +484,19 @@
       id: uid(),
       game: state.game,
       tiers: picked.tiers,
+      f: picked.f,
+      s: picked.s,
       a0: a0,
       a1: a1
     });
     save();
     showError('');
 
-    // 清空判定框，但保留两个轴值，方便接着打同一个设置
+    // 清空数字框，但保留两个轴值，方便接着打同一个设置
     Array.prototype.forEach.call(tierFields.querySelectorAll('input'), function (input) {
+      input.value = '';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#dirFields input'), function (input) {
       input.value = '';
     });
 
@@ -537,14 +592,32 @@
       var p = row[1];
       var tiers = info.tiers.map(function () { return { n: 0 }; });
 
-      tiers[centerIdx].n = Math.round(total * p);
-      var used = tiers[centerIdx].n;
-      tiers[info.tiers.length - 1].n = Math.max(0, total - used);
+      var missN = Math.round(total * 0.03);
+      var hits = total - missN;                       // 命中总数
+      var onTime = Math.round(total * p);             // 落在正中窗口里的
+      var off = Math.max(0, hits - onTime);           // 判早 + 判晚
+      var f = Math.floor(off / 2);
+      var s = off - f;
+
+      // 正中档拿「正好在窗口内」的那部分，剩下的放进近档，Miss 档单独放
+      var nearIdx = info.tiers.findIndex(function (t) {
+        return t.role === 'near' || t.role === 'far';
+      });
+
+      tiers[centerIdx].n = onTime;
+      tiers[info.tiers.length - 1].n = missN;
+      if (nearIdx >= 0 && nearIdx !== info.tiers.length - 1) {
+        tiers[nearIdx].n = off;
+      } else {
+        tiers[centerIdx].n = hits;
+      }
 
       state.runs.push({
         id: uid(),
         game: state.game,
         tiers: tiers,
+        f: info.hasDir ? f : 0,
+        s: info.hasDir ? s : 0,
         a0: axisKey === 'a0' ? row[0] : 0,
         a1: axisKey === 'a1' ? row[0] : 0
       });
@@ -568,7 +641,7 @@
     var runs = currentRuns();
 
     var head = ['#'].concat(info.tiers.map(function (t) {
-      return t.name + (t.dir ? '（含早/晚）' : '');
+      return t.name;
     })).concat(['命中率', '环带']);
     if (sup.a0) head.push('音频延迟');
     if (sup.a1) head.push('判定延迟');
@@ -595,7 +668,9 @@
         cells.push('<td>' + cell + '</td>');
       });
 
-      cells.push('<td>' + pct(m.p) + '</td>');
+      var pHtml = pct(m.p);
+      if (m.directional) pHtml += '<span class="tiny">−F' + m.fast + ' −L' + m.late + '</span>';
+      cells.push('<td>' + pHtml + '</td>');
       cells.push('<td>' + pct(m.ring) + '</td>');
       if (sup.a0) cells.push('<td>' + signed(run.a0) + '</td>');
       if (sup.a1) cells.push('<td>' + signed(run.a1) + '</td>');
@@ -672,6 +747,15 @@
       warningsBox.innerHTML = result.warnings.map(function (w) {
         return '<p class="warnline">⚠️ ' + esc(w) + '</p>';
       }).join('');
+    }
+
+    // 有的档带 Fast/Late 细分却没填：命中率会偏高，提醒一句
+    var partialRun = runs.some(function (r) {
+      return Core.computeMetrics(r, GAMES, mode).partial;
+    });
+    if (partialRun) {
+      warningsBox.innerHTML += '<p class="warnline">⚠️ 这款游戏的结算有 Fast / Late，但有局没填 —— ' +
+        '「判早了 / 判晚了」会被算进正中，命中率偏高（推荐位置基本不受影响）。</p>';
     }
 
     if (result.verdict === 'already-fine') {
@@ -861,6 +945,7 @@
     updateGameHint();
     renderTierFields();
     renderAxisFields();
+    renderDirFields();
     renderAxisPicker();
     renderModePicker();
   }

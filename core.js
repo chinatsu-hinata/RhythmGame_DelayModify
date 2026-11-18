@@ -312,26 +312,52 @@
 
     var total = rows.reduce(function (a, r) { return a + r.n; }, 0);
 
+    // 命中档 = 除了 Miss 以外的所有档（正中 / 近 / 远）
+    var hitN = rows.reduce(function (a, r) {
+      return a + (r.role === 'miss' ? 0 : r.n);
+    }, 0);
+
+    // 整局一对 Fast / Late：它们覆盖所有命中档，所以从「命中总数」里扣
+    var f = Math.min(Math.max(0, toInt(run && run.f)), hitN);
+    var s = Math.min(Math.max(0, toInt(run && run.s)), hitN - f);
+    var directional = (f + s) > 0;
+
     var centers = rows.filter(function (r) { return r.role === 'center'; });
-    var strict = centers[0] || { n: 0 };
-
     var centerN = centers.reduce(function (a, r) { return a + r.n; }, 0);
-    var hasDir = info.hasDir;             // 只是“这档含早/晚”的标记，不再参与换算
+    var strictN = centers[0] ? centers[0].n : 0;
 
-    // 命中率 = 正中档占比（不扣早/晚：玩家填的就是结算上的数字）
-    var pStrict = total > 0 ? strict.n / total : 0;
-    var pInclusive = total > 0 ? centerN / total : 0;
+    var hasDir = info.hasDir;
+    // 游戏声明「这档带早/晚」但一个都没填：命中率会偏高，界面要给提示
+    var partial = hasDir && !directional && hitN > 0;
+
+    // 有 Fast/Late 时：正中 = 命中总数 − 早 − 晚（所有命中档一起看）
+    // 没有时：沿用「正中档 / 总音符」，并可切「只用最严档 / 正中档合并」
+    var pStrict, pInclusive, edge;
+    if (directional) {
+      var onTime = Math.max(0, hitN - f - s);
+      pStrict = total > 0 ? onTime / total : 0;
+      pInclusive = pStrict;
+      edge = onTime;
+    } else {
+      pStrict = total > 0 ? strictN / total : 0;
+      pInclusive = total > 0 ? centerN / total : 0;
+      edge = (mode === 'inclusive' && centers.length > 1) ? centerN : strictN;
+    }
 
     var m = mode === 'inclusive' && centers.length > 1 ? 'inclusive' : 'strict';
-    var edge = m === 'inclusive' ? centerN : strict.n;
 
     return {
       rows: rows,
       counts: rows.map(function (r) { return r.n; }),   // 老界面还按数组用
       total: total,
+      hitN: hitN,
       centerN: centerN,
-      strictN: strict.n,
+      strictN: strictN,
+      fast: f,
+      late: s,
+      directional: directional,
       hasDir: hasDir,
+      partial: partial,
       p: m === 'inclusive' ? pInclusive : pStrict,
       pStrict: pStrict,
       pInclusive: pInclusive,
