@@ -44,7 +44,11 @@
     Object.keys(custom).forEach(function (k) { merged[k] = custom[k]; });
 
     GAMES = Core.normalizeGames(merged);
-    NAMES = Core.gameNames(GAMES);
+    // 下拉框里的游戏按字母 / Unicode 码升序排（"!" < "0" < "A" < "Z" < "a" < "z" < 汉字）。
+    // 只改显示顺序，GAMES 表本身和已选中的游戏都不受影响。
+    NAMES = Core.gameNames(GAMES).sort(function (a, b) {
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
   }
 
   rebuildGames();
