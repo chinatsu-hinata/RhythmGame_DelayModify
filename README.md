@@ -11,6 +11,11 @@ This project uses vibe coding as the main way to write program, with just a litt
 
 ## 版本 Version
 
+### Version BETA-0.0.2
+2026-11-20
+
+修复了判定延迟无法输入小数的bug，并且优化了图表
+
 ### Version BETA-0.0.1
 2026-11-18
 
