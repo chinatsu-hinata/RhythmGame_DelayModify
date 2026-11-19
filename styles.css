@@ -284,8 +284,6 @@ footer p { margin: 0; }
 
 /* ── hero mascot ──────────────────────────────────── */
 .hero-inner { display: grid; justify-items: center; gap: 4px; }
-.mascot { margin-bottom: 2px; }
-.mascot svg { display: block; filter: drop-shadow(0 6px 16px rgba(255, 212, 39, 0.18)); }
 .sub b { color: var(--accent); }
 
 /* ── misc ─────────────────────────────────────────── */
