@@ -18,7 +18,9 @@ This project uses vibe coding as the main way to write program, with just a litt
 
 First edition. Just add a few rhythm game support.
 
+### 测试
 
+[Muse Dash测试](./MuseDashTest.md)
 
 
 ## 原理 How does it work?
