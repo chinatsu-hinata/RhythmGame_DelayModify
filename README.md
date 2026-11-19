@@ -21,6 +21,7 @@ First edition. Just add a few rhythm game support.
 ### 测试
 
 1. [Muse Dash测试](./testcase/MuseDashTest.md)
+2. [Rotaeno测试](./testcase/RotaenoTest.md)
 
 
 ## 原理 How does it work?
