@@ -55,13 +55,13 @@
       a0: true, a1: true, fl: true,
       tiers: [
         {name:"Justice Critical", role:"center"},
-        { name: 'JUSTICE', role: 'center'},   // 结算里的 Early / Late 是 JUSTICE 内部的细分
+        { name: 'JUSTICE', role: 'center'}, 
         { name: 'ATTACK', role: 'near' },
         { name: 'MISS', role: 'miss' }
       ]
     },
     'maimaiDX/舞萌DX': {
-      a0: false, a1: true, fl: true,
+      a0: true, a1: true, fl: true,
       tiers: [
         {name:"Critical", role:"center"},
         { name: 'Perfect', role: 'center'},
@@ -115,7 +115,7 @@
       ]
     },
     "Muse Dash/喵斯快跑":{
-      a0: true, a1: false,fl:true,
+      a0: true, a1: false, fl:true,
       tiers: [
         {name:"Perfect", role:"center",ms:50},
         { name: 'Great', role: 'near',ms:130},
