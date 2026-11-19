@@ -138,7 +138,6 @@
       a0: true, a1: true, fl:true,
       tiers: [
         {name:"JUST", role:"center"},
-        { name: 'Just', role: 'center'},
         { name: 'GOOD', role: 'near'},
         {name:"OK",role:"far"},
         {name:"Miss",role:"Miss"}
