@@ -10,15 +10,15 @@
 
 0 偏移 0 Delay:
 
-![0](./v0.0.1_beta/test2/test1.png)
+![0](./v0.0.1_beta/test2/test1.jpg)
 
 +30 偏移 +0.01 Delay:
 
-![+30](./v0.0.1_beta/test2/test2.png)
+![+30](./v0.0.1_beta/test2/test2.jpg)
 
 +10 偏移 -0.01 Delay:
 
-![+10](./v0.0.1_beta/test2/test3.png)
+![+10](./v0.0.1_beta/test2/test3.jpg)
 
 
 
@@ -37,4 +37,4 @@ Created a form that uses the data above:
 得到了最高分和最多Perfect+/Perfect
 
 最后把最后一局的数据录入，最高峰依旧是12左右，说明预测的最佳延迟是12
-![graph](./v0.0.1_beta/test2/data3.png)
+![graph](./v0.0.1_beta/test2/data3.jpg)
