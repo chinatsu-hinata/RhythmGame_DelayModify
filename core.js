@@ -44,7 +44,7 @@
       ]
     },
     'Arcaea/韵律源点': {
-      a0: true, a1: false,
+      a0: true, a1: false,fl:true,
       tiers: [
         { name: 'Pure', role: 'center' },
         { name: 'Far', role: 'near' },
