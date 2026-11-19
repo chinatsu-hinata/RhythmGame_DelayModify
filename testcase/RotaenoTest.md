@@ -32,9 +32,9 @@ Created a form that uses the data above:
 ![graph](./v0.0.1_beta/test2/data2.png)
 
 之后按照延迟12进行游戏，结果如下:
-![0.001](./v0.0.1_beta/test2/test4.png)
+![0.001](./v0.0.1_beta/test2/test4.jpg)
 
 得到了最高分和最多Perfect+/Perfect
 
 最后把最后一局的数据录入，最高峰依旧是12左右，说明预测的最佳延迟是12
-![graph](./v0.0.1_beta/test2/data3.jpg)
+![graph](./v0.0.1_beta/test2/data3.png)
