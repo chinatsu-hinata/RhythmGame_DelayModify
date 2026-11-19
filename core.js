@@ -137,7 +137,8 @@
     "TAKUMI3":{
       a0: true, a1: true, fl:true,
       tiers: [
-        {name:"JUST", role:"center"},
+        {name:"JUST(Rainbow)", role:"center"},
+        {name:"Just(Yellow)",role:"center"},
         { name: 'GOOD', role: 'near'},
         {name:"OK",role:"far"},
         {name:"Miss",role:"Miss"}
