@@ -133,10 +133,35 @@
         {name:"Bad",role:"far",ms:125},
         {name:"Miss",role:"Miss"}
       ]
-    }
+    },
+    "TAKUMI3":{
+      a0: true, a1: true, fl:true,
+      tiers: [
+        {name:"JUST", role:"center"},
+        { name: 'Just', role: 'center'},
+        { name: 'GOOD', role: 'near'},
+        {name:"OK",role:"far"},
+        {name:"Miss",role:"Miss"}
+      ]
+    },
+    "Lanota/调律诗篇":{
+      a0: true, a1: false, fl:true,
+      tiers: [
+        {name:"Perfect+", role:"center"},
+        { name: 'Perfect', role: 'center'},
+        { name: 'Great', role: 'near'},
+        {name:"Good",role:"far"},
+        {name:"Bad",role:"far"},
+        {name:"Miss",role:"Miss"}
+      ]
+    },
   };
 
   var ROLE_LABEL = { center: '正中', near: '近', far: '远', miss: '漏' };
+
+
+
+
 
   /* ── 小工具 ──────────────────────────────────────────────── */
 
