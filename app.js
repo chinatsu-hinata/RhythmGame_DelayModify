@@ -894,11 +894,29 @@
     var ys = groups.map(function (g) { return g.mean; });
     var x0 = Math.min.apply(null, xs);
     var x1 = Math.max.apply(null, xs);
-    if (x1 - x0 < 1) { x0 -= 10; x1 += 10; }
+    // x 轴按数据自身的跨度放大（不再用固定的 ±10）：
+    // 0.05 / 0.085 / 0.12 这种小刻度也能铺满整张图
+    var xSpan = x1 - x0;
+    if (xSpan <= 0) {
+      var padX = Math.max(Math.abs(x0) * 0.1, 0.5);
+      x0 -= padX;
+      x1 += padX;
+    } else {
+      var edge = xSpan * 0.06;
+      x0 -= edge;
+      x1 += edge;
+    }
 
-    var yMin = Math.max(0, Math.min.apply(null, ys) - 0.05);
-    var yMax = Math.min(1, Math.max.apply(null, ys) + 0.04);
-    if (yMax - yMin < 0.02) yMax = Math.min(1, yMin + 0.02);
+    // y 轴同理：数据几乎一样平时也别把 0~100% 全摊开，按实际范围放大
+    var yLo = Math.min.apply(null, ys);
+    var yHi = Math.max.apply(null, ys);
+    var ySpan = yHi - yLo;
+    var yPad = Math.max(ySpan * 0.25, 0.004);
+    var yMin = Math.max(0, yLo - yPad);
+    var yMax = Math.min(1, yHi + yPad);
+    if (yMax - yMin < 0.01) yMax = Math.min(1, yMin + 0.01);
+    // 刻度小数位跟着范围走，不然 84.0% 和 85.0% 会印成两个"85%"
+    var yDigits = (yMax - yMin) < 0.005 ? 2 : (yMax - yMin) < 0.03 ? 1 : 0;
 
     function X(v) { return pad.l + (v - x0) / (x1 - x0) * w; }
     function Y(v) { return pad.t + (1 - (v - yMin) / (yMax - yMin)) * h; }
@@ -917,7 +935,7 @@
       ctx.moveTo(pad.l, yy);
       ctx.lineTo(pad.l + w, yy);
       ctx.stroke();
-      ctx.fillText((yv * 100).toFixed(0) + '%', pad.l - 8, yy);
+      ctx.fillText((yv * 100).toFixed(yDigits) + '%', pad.l - 8, yy);
     }
 
     // 每个轴值一个 x 刻度
