@@ -54,37 +54,38 @@
     'CHUNITHM/中二节奏': {
       a0: true, a1: true, fl: true,
       tiers: [
-        {name:"Justice Critical", role:"center"},
-        { name: 'JUSTICE', role: 'center'}, 
-        { name: 'ATTACK', role: 'near' },
+        {name:"Justice Critical", role:"center",ms:33},
+        { name: 'JUSTICE', role: 'center',ms:67}, 
+        { name: 'ATTACK', role: 'near',ms:100},
         { name: 'MISS', role: 'miss' }
       ]
     },
     'maimaiDX/舞萌DX': {
       a0: true, a1: true, fl: true,
       tiers: [
-        {name:"Critical", role:"center"},
-        { name: 'Perfect', role: 'center'},
-        { name: 'Great', role: 'near' },
-        { name: 'Good', role: 'far' },
+        {name:"Critical", role:"center",ms:17}, //大P=16.666ms
+        { name: 'Perfect', role: 'center',ms:50},
+        { name: 'Great', role: 'near',ms:100 },
+        { name: 'Good', role: 'far',ms:150},
         { name: 'Miss', role: 'miss' }
       ]
     },
     'Vivid/Stasis':{
       a0:true,a1:true,
       tiers:[
-        {name:'Critical',role:'center',dir:true},
-        {name:'Great',role:'near'},
-        {name: 'Good', role: 'far' },
+        {name:'Critical',role:'center',dir:true,ms:70},
+        {name:'Great',role:'near',ms:110},
+        {name: 'Good', role: 'far',ms:[-200,150]},
         {name: 'Miss', role: 'miss' }
       ]
     },
     "Project SEKAI/世界计划":{
       a0:false,a1:true,fl:true,
       tiers:[
-        { name: 'Perfect', role: 'center'},
-        { name: 'Great', role: 'near' },
-        { name: 'Good', role: 'far' },
+        { name: 'Perfect', role: 'center',ms:42},
+        { name: 'Great', role: 'near',ms:84},
+        { name: 'Good', role: 'far',ms:109},
+        {name:"Bad",role:"far",ms:125},
         { name: 'Miss', role: 'miss' }
       ]
     },
@@ -120,6 +121,17 @@
         {name:"Perfect", role:"center",ms:50},
         { name: 'Great', role: 'near',ms:130},
         { name: 'Miss', role: 'miss'}
+      ]
+    },
+    "World Dai Star/演剧星世界":{
+      a0: true, a1: false, fl:true,
+      tiers: [
+        {name:"Perfect+", role:"center",ms:25},
+        { name: 'Perfect', role: 'center',ms:40},
+        { name: 'Great', role: 'near',ms:70},
+        {name:"Good",role:"far",ms:100},
+        {name:"Bad",role:"far",ms:125},
+        {name:"Miss",role:"Miss"}
       ]
     }
   };
