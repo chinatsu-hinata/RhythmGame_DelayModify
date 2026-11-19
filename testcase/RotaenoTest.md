@@ -10,15 +10,15 @@
 
 0 偏移 0 Delay:
 
-![0](./v0.0.1_beta/test2/play1.png)
+![0](./v0.0.1_beta/test2/test1.png)
 
 +30 偏移 +0.01 Delay:
 
-![+30](./v0.0.1_beta/test2/play2.png)
+![+30](./v0.0.1_beta/test2/test2.png)
 
 +10 偏移 -0.01 Delay:
 
-![+10](./v0.0.1_beta/test2/play3.png)
+![+10](./v0.0.1_beta/test2/test3.png)
 
 
 
@@ -32,7 +32,7 @@ Created a form that uses the data above:
 ![graph](./v0.0.1_beta/test2/data2.png)
 
 之后按照延迟12进行游戏，结果如下:
-![0.001](./v0.0.1_beta/test2/play4.png)
+![0.001](./v0.0.1_beta/test2/test4.png)
 
 得到了最高分和最多Perfect+/Perfect
 
