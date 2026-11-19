@@ -524,6 +524,14 @@
 
   /* ── 结论 ────────────────────────────────────────────────── */
 
+  // 相邻轴值的最小间隔（= 你实际测出来的分辨率），用来判断"差一点"到底差多少
+  function axisStep(groups) {
+    var xs = groups.map(function (g) { return g.axis; }).sort(function (a, b) { return a - b; });
+    var step = Infinity;
+    for (var i = 1; i < xs.length; i++) step = Math.min(step, xs[i] - xs[i - 1]);
+    return isFinite(step) && step > 0 ? step : 1;
+  }
+
   function analyze(runs, axis, games, mode) {
     var groups = groupRuns(runs, axis, games, mode);
     var warnings = [];
@@ -561,9 +569,15 @@
       var peak = -fit.b / (2 * fit.c);
       if (isFinite(peak) && peak >= lo && peak <= hi) {
         var boot = bootstrapVertex(runs, axis, games, mode);
+        // 保留小数：小刻度的延迟（例如 0.085）不能被取整成 0
         var range = boot
-          ? [Math.round(boot.lo), Math.round(boot.hi)]
-          : [Math.round(peak) - 5, Math.round(peak) + 5];
+          ? [boot.lo, boot.hi]
+          : [peak - 5, peak + 5];
+        // 重采样全部落在同一个点上时（数据完全对称），区间会退化成一个点，这里补成 ±半个刻度
+        if (!(range[1] > range[0])) {
+          var hs = axisStep(groups) / 2;
+          range = [peak - hs, peak + hs];
+        }
         var width = range[1] - range[0];
 
         var confidence = width <= 8 && groups.length >= 4 ? 'high'
@@ -572,14 +586,14 @@
         reasons.push('把 ' + groups.length + ' 个轴值的平均命中率（' + modeLabel(mode) + '）拟成抛物线，顶点在 ' +
           peak.toFixed(1) + '。');
         reasons.push('重采样 ' + (boot ? boot.samples : 0) + ' 次得到的 90% 区间就是上面那个范围。');
-        if (best.axis !== Math.round(peak)) {
+        if (Math.abs(best.axis - peak) > axisStep(groups) / 2) {
           reasons.push('实测最好的是 ' + best.axis + '（' + (best.mean * 100).toFixed(1) +
             '%），和顶点差一点，属正常波动。');
         }
 
         return {
           verdict: 'peak',
-          value: Math.round(peak),
+          value: peak,
           range: range,
           confidence: confidence,
           groups: groups,
@@ -626,11 +640,11 @@
     }
 
     var value = refined && isFinite(refined.x) ? refined.x : best.axis;
-    var r2 = [Math.round(value) - 5, Math.round(value) + 5];
+    var r2 = [value - 5, value + 5];
 
     return {
       verdict: 'peak',
-      value: Math.round(value),
+      value: value,
       range: r2,
       confidence: 'low',
       groups: groups,

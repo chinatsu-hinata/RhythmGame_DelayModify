@@ -109,13 +109,53 @@
 
   function pct(v, digits) { return (v * 100).toFixed(digits == null ? 1 : digits) + '%'; }
 
-  // 偏移量显示：整数就整数，带小数就保留 1 位（负数照常带 - 号）
+  // 数值显示：最多 4 位小数、末尾的 0 去掉（0.085 就是 0.085，不会被写成 0.1）
+  function fmtNum(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return '—';
+    var r = Math.round(n * 10000) / 10000;
+    if (r === 0) r = 0; // 顺手把 -0 变回 0
+    var text = String(r);
+    if (text.indexOf('e') >= 0) text = r.toFixed(4); // 极小值避免科学计数法
+    return text;
+  }
+
+  // 偏移量显示：整数就整数，带小数就按原样保留（负数照常带 - 号，正数加 +）
   function signed(v) {
     var n = Number(v);
     if (!isFinite(n)) return '—';
-    var r = Math.round(n);
-    var text = Math.abs(n - r) < 1e-9 ? String(r) : n.toFixed(1);
+    var text = fmtNum(n);
     return (n > 0 && text[0] !== '-') ? '+' + text : text;
+  }
+
+  // core.js 会把顶点取整成整数（Math.round），像 0.085 这种小刻度的延迟会被写成 0。
+  // 这里用同一批分组数据重算一次**不取整**的顶点；算不出来就返回 null，调用方回退到 result.value。
+  function precisePeak(result) {
+    var gs = result && result.groups ? result.groups : [];
+    if (gs.length < 3) return null;
+    var fit = Core.poly2(gs.map(function (g) {
+      return { x: g.axis, y: g.mean, w: g.n };
+    }));
+    if (!fit || !(fit.c < 0)) return null;
+    var v = -fit.b / (2 * fit.c);
+    return isFinite(v) ? v : null;
+  }
+
+  // 建议区间：顶点 ± 半个最小刻度间隔（也就是你实际测得的精度），再夹在测过的轴值范围内
+  function preciseRange(result, peak) {
+    var gs = (result && result.groups) || [];
+    if (peak == null || gs.length < 2) {
+      return result && result.range ? result.range : [peak, peak];
+    }
+    var axes = gs.map(function (g) { return g.axis; }).sort(function (a, b) { return a - b; });
+    var gap = Infinity;
+    for (var i = 1; i < axes.length; i++) gap = Math.min(gap, axes[i] - axes[i - 1]);
+    if (!isFinite(gap) || gap <= 0) gap = 0;
+    var half = gap / 2;
+    return [
+      Math.max(axes[0], peak - half),
+      Math.min(axes[axes.length - 1], peak + half)
+    ];
   }
 
   // 读一个整数输入框：空 → 0；非法 → NaN（由调用方报错）
@@ -723,12 +763,14 @@
   var lastSummary = '';
 
   function buildSummary(result, axisName) {
-    var r = result.range || [result.value - 5, result.value + 5];
+    var peak = precisePeak(result);
+    var value = peak == null ? result.value : peak;
+    var r = preciseRange(result, value);
     var metric = state.mode === 'inclusive' ? '（正中档合并）' : '';
     if (result.verdict === 'already-fine') {
       return '【Offset Calibrator】' + state.game + ' · ' + axisName + ' = 0 已经是最优，不用调。' + metric;
     }
-    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(result.value) +
+    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(value) +
       '（区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) + '，置信度 ' + result.confidence + '）' + metric;
   }
 
@@ -777,9 +819,12 @@
       verdictValue.textContent = '—';
       verdictSub.textContent = '至少测 3 个不同的轴值，每个值 2 局。';
     } else {
+      // core 的顶点是取整的，小刻度（0.085 这种）会变成 0；能重算就用重算的
+      var peak = precisePeak(result);
+      var value = peak == null ? result.value : peak;
+      var r = preciseRange(result, value);
       verdictLabel.textContent = '建议 ' + axisName;
-      verdictValue.textContent = signed(result.value);
-      var r = result.range || [result.value - 5, result.value + 5];
+      verdictValue.textContent = signed(value);
       verdictSub.textContent = '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
         ' · 置信度 ' + (result.confidence === 'high' ? '高'
           : result.confidence === 'medium' ? '中' : '低');
@@ -910,21 +955,23 @@
       ctx.stroke();
     }
 
-    // 顶点竖线
-    if (result && result.verdict === 'peak' && isFinite(result.value)) {
+    // 顶点竖线（用未取整的顶点，小刻度才画得准）
+    var vpeak = precisePeak(result);
+    if (vpeak == null) vpeak = result.value;
+    if (result && result.verdict === 'peak' && isFinite(vpeak)) {
       ctx.strokeStyle = cssVar('--chart-vertex', 'rgba(15,157,88,0.85)');
       ctx.setLineDash([5, 4]);
       ctx.beginPath();
-      ctx.moveTo(X(result.value), pad.t);
-      ctx.lineTo(X(result.value), pad.t + h);
+      ctx.moveTo(X(vpeak), pad.t);
+      ctx.lineTo(X(vpeak), pad.t + h);
       ctx.stroke();
       ctx.setLineDash([]);
 
       ctx.fillStyle = cssVar('--chart-vertex-text', 'rgba(15,157,88,0.95)');
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText('顶点 ' + signed(result.value),
-        Math.min(X(result.value) + 6, pad.l + w - 70), pad.t + 2);
+      ctx.fillText('顶点 ' + signed(vpeak),
+        Math.min(X(vpeak) + 6, pad.l + w - 90), pad.t + 2);
     }
 
     // 数据点 + 标准差竖线
