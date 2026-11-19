@@ -20,7 +20,7 @@ First edition. Just add a few rhythm game support.
 
 ### 测试
 
-1. [Muse Dash测试](./testdata/MuseDashTest.md)
+1. [Muse Dash测试](./testcase/MuseDashTest.md)
 
 
 ## 原理 How does it work?
