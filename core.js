@@ -145,12 +145,18 @@
       ]
     },
     "Lanota/调律诗篇":{
-      a0: true, a1: false, fl:true,
+      a0: true, a1: false, fl:false,
       tiers: [
-        {name:"Perfect+", role:"center"},
-        { name: 'Perfect', role: 'center'},
-        { name: 'Great', role: 'near'},
-        {name:"Good",role:"far"},
+        {name:"Harmony", role:"center"},,
+        { name: 'Tune', role: 'near'},
+        {name:"Fail",role:"Miss"}
+      ]
+    },
+    "Cytus II":{
+      a0: false, a1: true, fl:false,
+      tiers: [
+        {name:"Perfect", role:"center"},
+        { name: 'Good', role: 'near'},
         {name:"Bad",role:"far"},
         {name:"Miss",role:"Miss"}
       ]
