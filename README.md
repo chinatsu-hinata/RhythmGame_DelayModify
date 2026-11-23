@@ -11,6 +11,11 @@ This project uses vibe coding as the main way to write program, with just a litt
 
 ## 版本 Version
 
+### Version BETA-0.0.3
+2026-11-23
+
+增加了"如何使用工具"的部分并且对其他部分的文案做出小修改(人工)
+
 ### Version BETA-0.0.2
 2026-11-20
 
