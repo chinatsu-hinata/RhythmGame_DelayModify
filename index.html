@@ -152,11 +152,26 @@
 
   <section class="panel">
     <div class="panel-head">
-      <h2>⑤ 怎么测才准</h2>
+      <h2>⑤ 如何使用这个工具</h2>
+    </div>
+    <ul class="steps">
+      <li>I. 先在游戏列表里面选择游戏，看看有没有支持你的游戏</li>
+      <li>II. 先用你目前的延迟游玩一次游戏</li>
+      <li>III. 记录下Perfect,Great等的数量以及有多少个Fast/Late，并且在工具中输入</li>
+      <li>IV. 微调延迟<b>(推荐±50ms)</b></li>
+      <li>V. 重复步骤II-IV，直到你有<b>3个</b>在不同延迟下打的成绩数据</li>
+      <li>VI. 看一下拟合出来的建议延迟，如果<b>延迟波动过大</b>或者希望得到更准确的延迟可以<b>重复步骤II-IV</b></li>
+      <li>VII. 按照推荐的延迟游玩一局后再把数据输入到工具里作验算，如果这个延迟依旧落在区间里面就可以使用，否则请重复II-IV</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>⑥ 怎么测才准</h2>
     </div>
     <ol class="steps">
-      <li>先分型：<b>听声音打的</b>（听押）调「音频延迟」；<b>看画面打的</b>（目押）调「判定延迟」。</li>
-      <li>同一个设置至少打 <b>2 局</b>，一共测 <b>3 个以上</b>不同的轴值（比如 0 / +20 / +40）。</li>
+      <li>先分型：<b>听声音打的</b>（音押）调「音频延迟」；<b>看画面打的</b>（目押）调「判定延迟」。</li>
+      <li>同一个设置建议打 <b>2 局</b>，一共测 <b>3 个以上</b>不同的轴值（比如 0 / -5 / +40）。</li>
       <li>每次改完设置，<b>记得按确认并回主菜单</b>再进曲目 —— 否则测的还是旧值。</li>
       <li>两个设置的结果如果只差 3 个百分点以内，说明这一局本身就不稳，再多打两局。</li>
       <li>结论只给<b>区间</b>，不给"精确到 1ms"的假精度；区间内随便挑一个整数就行。</li>
@@ -165,7 +180,7 @@
 
   <section class="panel about">
     <div class="panel-head">
-      <h2>⑥ 关于这个工具</h2>
+      <h2>⑦ 关于这个工具</h2>
     </div>
     <ul>
       <li><b>算法</b>：把每个轴值的「正中率」当数据点，用二次曲线拟合，取顶点作为建议值，再用 bootstrap 重采样给区间。</li>
@@ -179,7 +194,7 @@
 </main>
 
 <footer>
-  <p>请支持日向千夏Chinatsu Hinata谢谢喵</p>
+  <p>请支持日向千夏Chinatsu Hinata谢谢喵 · Made by 小宫Miyako with assist of DeepSeek V4.1 Flash</p>
 </footer>
 
 <!-- 不写 ?v= 版本号：方便在 GitHub 网页里直接改文件；GitHub Pages 缓存约 10 分钟，改完刷新未生效就 Ctrl+F5 -->
