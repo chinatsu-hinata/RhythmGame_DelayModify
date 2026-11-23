@@ -132,8 +132,9 @@
     return (n > 0 && text[0] !== '-') ? '+' + text : text;
   }
 
-  // core.js 会把顶点取整成整数（Math.round），像 0.085 这种小刻度的延迟会被写成 0。
-  // 这里用同一批分组数据重算一次**不取整**的顶点；算不出来就返回 null，调用方回退到 result.value。
+  // core.js 的顶点可能因为抛物线本身的形状被算到没测过的区间里。
+  // 这里用同一批分组数据重算一次**不取整**的顶点；算不出来或出界就返回 null，
+  // 让调用方回退到 core 的三点精修值 —— 否则会出现「建议 -18 · 区间 0 ~ 2」这种自相矛盾的显示。
   function precisePeak(result) {
     var gs = result && result.groups ? result.groups : [];
     if (gs.length < 3) return null;
@@ -142,7 +143,10 @@
     }));
     if (!fit || !(fit.c < 0)) return null;
     var v = -fit.b / (2 * fit.c);
-    return isFinite(v) ? v : null;
+    if (!isFinite(v)) return null;
+    var axes = gs.map(function (g) { return g.axis; }).sort(function (a, b) { return a - b; });
+    if (v < axes[0] || v > axes[axes.length - 1]) return null;
+    return v;
   }
 
   // 建议区间：顶点 ± 半个最小刻度间隔（也就是你实际测得的精度），再夹在测过的轴值范围内
@@ -152,6 +156,8 @@
       return result && result.range ? result.range : [peak, peak];
     }
     var axes = gs.map(function (g) { return g.axis; }).sort(function (a, b) { return a - b; });
+    // 顶点本身也夹一下：区间里必须包含它自己给出的建议值
+    peak = Math.min(axes[axes.length - 1], Math.max(axes[0], peak));
     var gap = Infinity;
     for (var i = 1; i < axes.length; i++) gap = Math.min(gap, axes[i] - axes[i - 1]);
     if (!isFinite(gap) || gap <= 0) gap = 0;
@@ -160,6 +166,14 @@
       Math.max(axes[0], peak - half),
       Math.min(axes[axes.length - 1], peak + half)
     ];
+  }
+
+  // 「重复性」不是「置信度」：它只说同样设置重打一局这个数会晃多少，不含模型误差
+  var REPEAT_LABEL = { high: '高', medium: '中', low: '低', unknown: '—' };
+
+  function repeatOf(result) {
+    var r = result && result.repeatability !== undefined ? result.repeatability : result && result.confidence;
+    return REPEAT_LABEL[r] || '—';
   }
 
   // 读一个整数输入框：空 → 0；非法 → NaN（由调用方报错）
@@ -775,7 +789,7 @@
       return '【Offset Calibrator】' + state.game + ' · ' + axisName + ' = 0 已经是最优，不用调。' + metric;
     }
     return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(value) +
-      '（区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) + '，置信度 ' + result.confidence + '）' + metric;
+      '（区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) + '，重复性 ' + repeatOf(result) + '）' + metric;
   }
 
   function renderAnalysis() {
@@ -821,7 +835,9 @@
     } else if (result.verdict === 'insufficient') {
       verdictLabel.textContent = '数据不够';
       verdictValue.textContent = '—';
-      verdictSub.textContent = '至少测 3 个不同的轴值，每个值 2 局。';
+      verdictSub.textContent = result.insufficientKind === 'runs'
+        ? '同一个轴值再打一局，才看得出你会晃多少。'
+        : '至少测 3 个不同的轴值，每个值 2 局。';
     } else {
       // core 的顶点是取整的，小刻度（0.085 这种）会变成 0；能重算就用重算的
       var peak = precisePeak(result);
@@ -830,8 +846,7 @@
       verdictLabel.textContent = '建议 ' + axisName;
       verdictValue.textContent = signed(value);
       verdictSub.textContent = '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
-        ' · 置信度 ' + (result.confidence === 'high' ? '高'
-          : result.confidence === 'medium' ? '中' : '低');
+        ' · 重复性 ' + repeatOf(result);
     }
 
     reasonsBox.innerHTML = (result.reasons || []).map(function (x) {

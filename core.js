@@ -527,6 +527,28 @@
     return s[lo] + (s[hi] - s[lo]) * (pos - lo);
   }
 
+  // 确定性随机：同一批数据每次重采样走同一条路径。
+  // 原来用 Math.random()，点一次「重新分析」结论会晃，用户会以为数据变了。
+  function hashSeed(text) {
+    var h = 2166136261;
+    for (var i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function makeRng(seed) {
+    var s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      var t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
   // 组内重采样，给顶点一个 5%~95% 区间（不做任何分布假设）
   function bootstrapVertex(runs, axis, games, mode, iterations) {
     var times = iterations || 600;
@@ -541,13 +563,18 @@
     var keys = Array.from(byAxis.keys());
     if (keys.length < 3) return null;
 
+    // 种子取自数据本身：同样的记录永远得到同样的区间
+    var rng = makeRng(hashSeed(keys.map(function (x) {
+      return x + ':' + byAxis.get(x).map(function (t) { return t.p.toFixed(6); }).join(',');
+    }).join('|')));
+
     var vertices = [];
     for (var t = 0; t < times; t++) {
       var pts = keys.map(function (x) {
         var list = byAxis.get(x);
         var sum = 0;
         for (var i = 0; i < list.length; i++) {
-          sum += list[Math.floor(Math.random() * list.length)].p;
+          sum += list[Math.floor(rng() * list.length)].p;
         }
         return { x: x, y: sum / list.length, w: list.length };
       });
@@ -558,10 +585,15 @@
     }
     if (vertices.length < 20) return null;
 
+    var lo = percentile(vertices, 0.05);
+    var hi = percentile(vertices, 0.95);
     return {
-      lo: percentile(vertices, 0.05),
-      hi: percentile(vertices, 0.95),
-      samples: vertices.length
+      lo: lo,
+      hi: hi,
+      samples: vertices.length,
+      // 每组只有 1 局时，重采样只会抽到同一个值 → 区间退化成一点。
+      // 这种「宽度 0」不是「很准」，是「没测过抖动」，必须单独标出来。
+      degenerate: !(hi > lo)
     };
   }
 
@@ -574,6 +606,8 @@
     for (var i = 1; i < xs.length; i++) step = Math.min(step, xs[i] - xs[i - 1]);
     return isFinite(step) && step > 0 ? step : 1;
   }
+
+  function round1(v) { return Math.round(v * 10) / 10; }
 
   function analyze(runs, axis, games, mode) {
     var groups = groupRuns(runs, axis, games, mode);
@@ -598,7 +632,22 @@
     if (groups.length < 3) {
       reasons.push('目前只有 ' + groups.length + ' 个轴值 —— 至少 3 个（最好各 2 局）才能看出形状。');
       reasons.push('先按「' + (best.axis > 0 ? '+' : '') + best.axis + '」附近再测两个值试试。');
-      return { verdict: 'insufficient', groups: groups, best: best, warnings: warnings, reasons: reasons };
+      return {
+        verdict: 'insufficient', insufficientKind: 'axes', groups: groups, best: best,
+        warnings: warnings, reasons: reasons
+      };
+    }
+
+    // 每组只有 1 局：组内没有重复，重采样抽不到别的值，区间会退化成一点，
+    // 再往下算就会给出「宽度 0 → 重复性很高」的假乐观结论 —— 直接不给结论。
+    var lonely = groups.filter(function (g) { return g.n < 2; });
+    if (lonely.length === groups.length) {
+      reasons.push('每组都只打了 1 局 —— 组内没有重复，算不出「同一个设置下你会晃多少」，所以先不给结论。');
+      reasons.push('挑 3 个轴值，每个值在同一个设置下再打一局（共 6 局），再回来看。');
+      return {
+        verdict: 'insufficient', insufficientKind: 'runs', groups: groups, best: best,
+        warnings: warnings, reasons: reasons
+      };
     }
 
     var fit = poly2(groups.map(function (g) {
@@ -612,23 +661,34 @@
       var peak = -fit.b / (2 * fit.c);
       if (isFinite(peak) && peak >= lo && peak <= hi) {
         var boot = bootstrapVertex(runs, axis, games, mode);
-        // 保留小数：小刻度的延迟（例如 0.085）不能被取整成 0
-        var range = boot
-          ? [boot.lo, boot.hi]
-          : [peak - 5, peak + 5];
-        // 重采样全部落在同一个点上时（数据完全对称），区间会退化成一个点，这里补成 ±半个刻度
-        if (!(range[1] > range[0])) {
-          var hs = axisStep(groups) / 2;
-          range = [peak - hs, peak + hs];
-        }
-        var width = range[1] - range[0];
+        var hs = axisStep(groups) / 2;
+        // 显示用的区间 = 顶点 ± 半个最小刻度（你实际测出来的分辨率），再夹在测过的范围里。
+        // 抛物线的顶点保留小数：小刻度的延迟（例如 0.085）不能被取整成 0。
+        var range = [Math.max(lo, peak - hs), Math.min(hi, peak + hs)];
+        if (!(range[1] > range[0])) range = [peak, peak];
 
-        var confidence = width <= 8 && groups.length >= 4 ? 'high'
-          : width <= 18 ? 'medium' : 'low';
+        // 「重复性」只说一件事：同样的设置重打一局，这个数会晃多少。
+        // 它不包含「模型选错了」的那部分误差，所以不叫置信度。组内没有重复时给 unknown。
+        var repeatability = !boot || boot.degenerate ? 'unknown'
+          : (boot.hi - boot.lo) <= 8 ? 'high'
+            : (boot.hi - boot.lo) <= 18 ? 'medium' : 'low';
+
+        // 测过的跨度不到建议区间宽的两倍 —— 顶点有一部分是外推出来的，得说清楚
+        var span = hi - lo;
+        var width = Math.max(0, range[1] - range[0]);
+        if (width > 0 && span < 2 * width) {
+          warnings.push('测过的轴值跨度（' + span + '）不到建议区间宽的两倍 —— 顶点有一半是靠外推的，' +
+            '想更稳就把两端各再打远一点。');
+        }
 
         reasons.push('把 ' + groups.length + ' 个轴值的平均命中率（' + modeLabel(mode) + '）拟成抛物线，顶点在 ' +
           peak.toFixed(1) + '。');
-        reasons.push('重采样 ' + (boot ? boot.samples : 0) + ' 次得到的 90% 区间就是上面那个范围。');
+        if (boot && !boot.degenerate) {
+          reasons.push('重采样 ' + boot.samples + ' 次，顶点在 ' + round1(boot.lo) + ' ~ ' + round1(boot.hi) +
+            ' 之间晃（同一批数据每次算出来一样）。这个宽度只回答「重打几局会抖多少」，不含模型误差。');
+        } else {
+          reasons.push('组内没有重复局，重采样抽不到别的值、退化成一点 —— 所以不给重复性，只按区间用。');
+        }
         if (Math.abs(best.axis - peak) > axisStep(groups) / 2) {
           reasons.push('实测最好的是 ' + best.axis + '（' + (best.mean * 100).toFixed(1) +
             '%），和顶点差一点，属正常波动。');
@@ -638,7 +698,8 @@
           verdict: 'peak',
           value: peak,
           range: range,
-          confidence: confidence,
+          confidence: repeatability,
+          repeatability: repeatability,
           groups: groups,
           best: best,
           warnings: warnings,
@@ -675,6 +736,7 @@
         value: 0,
         range: [0, 0],
         confidence: 'medium',
+        repeatability: 'medium',
         groups: groups,
         best: best,
         warnings: warnings,
@@ -683,13 +745,22 @@
     }
 
     var value = refined && isFinite(refined.x) ? refined.x : best.axis;
-    var r2 = [value - 5, value + 5];
+    // 兜底出来的值也不许把区间甩到测过的范围外
+    var raw = value;
+    value = Math.min(hi, Math.max(lo, value));
+    if (value !== raw || value === lo || value === hi) {
+      warnings.push('建议值落在你测过的最边上一档（' + value + '）—— 真正的最优点可能还在外面，' +
+        '把那一侧再往外打一两个轴值会更准。');
+    }
+    var r2 = [Math.max(lo, value - 5), Math.min(hi, value + 5)];
+    if (!(r2[1] > r2[0])) r2 = [value, value];
 
     return {
       verdict: 'peak',
       value: value,
       range: r2,
       confidence: 'low',
+      repeatability: 'low',
       groups: groups,
       best: best,
       warnings: warnings,
