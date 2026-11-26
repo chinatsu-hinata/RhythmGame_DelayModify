@@ -168,6 +168,64 @@
     ];
   }
 
+  // 三局之后的「下一步」：只说往哪边再打一局，不替用户下结论。
+  // 优先级：曲线平 > 单调 > 顶点贴边 > 跨度太窄。文案 3pp / 0.5pp / 2pp 都是经验值。
+  function probeHint(result, range, value) {
+    var gs = (result && result.groups ? result.groups.slice() : [])
+      .sort(function (a, b) { return a.axis - b.axis; });
+    if (gs.length < 3) return null;
+    var means = gs.map(function (g) { return g.mean; });
+    var lo = gs[0].axis, hi = gs[gs.length - 1].axis, span = hi - lo;
+    if (!(span > 0)) return null;
+    for (var k = 0; k < means.length; k++) if (!isFinite(means[k])) return null;
+
+    var gap = span;
+    for (var i = 1; i < gs.length; i++) gap = Math.min(gap, gs[i].axis - gs[i - 1].axis);
+    if (!(gap > 0)) gap = span;
+    // 小数刻度（0.085 这种）按自己的刻度缩放，不套 20ms
+    var big = Math.max(Math.abs(lo), Math.abs(hi));
+    var fractional = big <= 1.5 && gap <= 0.5;
+    var step = fractional ? Math.max(gap, Math.abs(span) * 0.2) : Math.max(gap, 10);
+    var cap = fractional ? big + 3 * step : 40;
+    var out = function (x) { return Math.min(cap, Math.max(-cap, x)); };
+    var twoEnds = signed(out(lo - step)) + ' 和 ' + signed(out(hi + step));
+
+    var top = Math.max.apply(null, means), bottom = Math.min.apply(null, means);
+    if (top - bottom < 0.03) {
+      return { kind: 'flat', text: '三点差不多一样高 —— 曲线几乎是平的，顶点算不出来。把两端各往外补一局（' +
+        twoEnds + '），曲线动起来了再下结论。' };
+    }
+
+    // 单调性留 0.5pp 容差，免得一两局抖动被当成拐点
+    var up = true, down = true;
+    for (var j = 1; j < means.length; j++) {
+      if (means[j] < means[j - 1] - 0.005) up = false;
+      if (means[j] > means[j - 1] + 0.005) down = false;
+    }
+    if (up && means[means.length - 1] - means[0] >= 0.02) {
+      return { kind: 'right', text: '命中率一路往上，峰还在右边没测到 —— 先打 ' +
+        signed(out(hi + step)) + ' 试方向（试探值，不是结论）。' };
+    }
+    if (down && means[0] - means[means.length - 1] >= 0.02) {
+      return { kind: 'left', text: '命中率一路往下，峰还在左边没测到 —— 先打 ' +
+        signed(out(lo - step)) + ' 试方向（试探值，不是结论）。' };
+    }
+
+    // 顶点贴边 = 山顶没测全（「跨度 < 2×区间宽」在 3 组以上几乎不可能成立：span ≥ 2×最小刻度）
+    if (value != null && isFinite(value) && Math.min(value - lo, hi - value) < step) {
+      var right = (hi - value) <= (value - lo);
+      return { kind: 'edge', text: '顶点贴着' + (right ? '右' : '左') + '边缘（' + signed(value) +
+        '）—— 峰可能还在' + (right ? '右' : '左') + '边，先打 ' +
+        signed(out(right ? hi + step : lo - step)) + ' 一局。' };
+    }
+    var width = range ? range[1] - range[0] : 0;
+    if (width > 0 && span < 2 * width) {
+      return { kind: 'narrow', text: '测过的跨度只有 ' + fmtNum(span) + '，不到区间宽的两倍 —— ' +
+        '顶点有一半靠外推，' + twoEnds + ' 各补一局会更稳。' };
+    }
+    return null;
+  }
+
   // 「重复性」不是「置信度」：它只说同样设置重打一局这个数会晃多少，不含模型误差
   var REPEAT_LABEL = { high: '高', medium: '中', low: '低', unknown: '—' };
 
@@ -828,6 +886,7 @@
         '「判早了 / 判晚了」会被算进正中，命中率偏高（推荐位置基本不受影响）。</p>';
     }
 
+    var flatHint = false;
     if (result.verdict === 'already-fine') {
       verdictLabel.textContent = '不用调';
       verdictValue.textContent = '0';
@@ -843,10 +902,14 @@
       var peak = precisePeak(result);
       var value = peak == null ? result.value : peak;
       var r = preciseRange(result, value);
-      verdictLabel.textContent = '建议 ' + axisName;
-      verdictValue.textContent = signed(value);
-      verdictSub.textContent = '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
-        ' · 重复性 ' + repeatOf(result);
+      var hint = probeHint(result, r, value);
+      // 曲线是平的：顶点公式算出来的数没有意义，宁可不给
+      flatHint = !!hint && hint.kind === 'flat';
+      verdictLabel.textContent = flatHint ? '测不出峰' : '建议 ' + axisName;
+      verdictValue.textContent = flatHint ? '—' : signed(value);
+      verdictSub.textContent = flatHint ? hint.text
+        : '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
+          ' · 重复性 ' + repeatOf(result) + (hint ? ' · ' + hint.text : '');
     }
 
     reasonsBox.innerHTML = (result.reasons || []).map(function (x) {
@@ -866,7 +929,7 @@
     renderGroupsTable(result);
     drawChart(result);
 
-    if (result.verdict === 'peak' || result.verdict === 'already-fine') {
+    if (!flatHint && (result.verdict === 'peak' || result.verdict === 'already-fine')) {
       lastSummary = buildSummary(result, axisName);
       copyBtn.hidden = false;
     }
