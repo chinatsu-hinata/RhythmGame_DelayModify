@@ -838,6 +838,32 @@
 
   var lastSummary = '';
 
+  // 结论卡上那句「往哪边调」：只给方向 + 一个保守步长，绝不冒充最优值
+  function voteHint(vote, axisName) {
+    if (!vote) return '';
+    if (!vote.used) return '这几局都没填 Fast / Late —— 判断不了偏早还是偏晚。';
+    if (vote.votes < 3) {
+      return '想知道往哪边调：设置别动，换 3~5 首不同的歌各打一局，看 Fast / Late 哪边多。';
+    }
+    if (!vote.dir) {
+      return '这 ' + vote.votes + ' 局早晚一半一半 —— 设置已经差不多，先别动。';
+    }
+    var word = vote.dir === 'late' ? '你打晚啦' : '你打早啦';
+    var toward = vote.dir === 'late' ? '大' : '小';
+    var why = vote.votes < 5 ? '（局数还少，只当方向）'
+      : (vote.p > 0.1 ? '（早晚差得还不多，只当方向）' : '');
+    return word + ' → ' + axisName + '往' + toward + '调 ' + vote.step + ' 试试（试探值）' + why;
+  }
+
+  // 拟合已经给出结论时，把方向票当成「交叉验证」：两者指向相反就说明数据在打架
+  function voteConflict(result, vote, value) {
+    if (!vote || !vote.dir) return false;
+    if (result.verdict !== 'peak' && result.verdict !== 'already-fine') return false;
+    var need = vote.dir === 'late' ? 1 : -1;          // late 多 → 该往大调
+    var offer = value === vote.axis ? 0 : (value > vote.axis ? 1 : -1);
+    return offer === -need;
+  }
+
   function buildSummary(result, axisName) {
     var peak = precisePeak(result);
     var value = peak == null ? result.value : peak;
@@ -887,6 +913,9 @@
     }
 
     var flatHint = false;
+    var vote = Core.gameInfo(GAMES, state.game).fl
+      ? Core.directionVote(runs, state.axis, GAMES, mode) : null;
+    var voteValue = null;
     if (result.verdict === 'already-fine') {
       verdictLabel.textContent = '不用调';
       verdictValue.textContent = '0';
@@ -894,9 +923,11 @@
     } else if (result.verdict === 'insufficient') {
       verdictLabel.textContent = '数据不够';
       verdictValue.textContent = '—';
-      verdictSub.textContent = result.insufficientKind === 'runs'
+      var base = result.insufficientKind === 'runs'
         ? '同一个轴值再打一局，才看得出你会晃多少。'
         : '至少测 3 个不同的轴值，每个值 2 局。';
+      var vh = voteHint(vote, axisName);
+      verdictSub.textContent = base + (vh ? ' ' + vh : '');
     } else {
       // core 的顶点是取整的，小刻度（0.085 这种）会变成 0；能重算就用重算的
       var peak = precisePeak(result);
@@ -910,11 +941,19 @@
       verdictSub.textContent = flatHint ? hint.text
         : '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
           ' · 重复性 ' + repeatOf(result) + (hint ? ' · ' + hint.text : '');
+      voteValue = value;
     }
 
     reasonsBox.innerHTML = (result.reasons || []).map(function (x) {
       return '<p class="hint">' + esc(x) + '</p>';
     }).join('');
+
+    // 拟合已经给出结论时，方向票只当交叉验证 —— 两边指向相反就说明数据在打架
+    if (vote && voteValue != null && vote.dir) {
+      var clash = voteConflict(result, vote, voteValue);
+      reasonsBox.innerHTML += '<p class="hint">🧭 方向票：' + esc(voteHint(vote, axisName)) +
+        (clash ? ' —— ⚠️ 和上面的建议方向相反，先按方向票小步试，别一次跳太多。' : '') + '</p>';
+    }
 
     var info = Core.gameInfo(GAMES, state.game);
     var modeText = info.centerCount > 1 ? ' · 主指标：' + Core.modeLabel(mode) : '';

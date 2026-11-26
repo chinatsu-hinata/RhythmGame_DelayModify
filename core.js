@@ -764,6 +764,78 @@
     };
   }
 
+  // ── 方向投票（不要求同一首歌，但要求同一个设置）────────────────
+  // 一局里唯一带「早 / 晚」符号的信息是 Fast / Late 的对比：命中率是偶函数，
+  // 分不出偏早还是偏晚。于是把每局折成一票：
+  //   z = (Late - Fast) / sqrt(Fast + Late)
+  // |z| < 1 说明这一局自己也说不清（差得还没到统计误差），不投票。
+  //
+  // 前提：这些局必须打在同一个设置下 —— 设置本身就会把 Fast/Late 推向一边，
+  // 混着不同设置投票等于在比设置，不是在判断玩家。所以只取局数最多的那个轴值。
+  // 好处：换歌不影响方向（同一首歌的「难度」会同时抬高/压低两边），
+  // 所以这条完全不需要重复打同一首歌。
+  function binomTwoSided(n, k) {
+    if (!n) return 1;
+    var c = 1, tail = 0;
+    for (var i = 0; i <= n; i++) {
+      if (i >= k) tail += c;
+      c = c * (n - i) / (i + 1);
+    }
+    return Math.min(1, 2 * tail / Math.pow(2, n));
+  }
+
+  function directionVote(runs, axis, games, mode) {
+    var tally = new Map();
+    (runs || []).forEach(function (run) {
+      var x = axisValue(run, axis);
+      tally.set(x, (tally.get(x) || 0) + 1);
+    });
+    if (!tally.size) return null;
+
+    // 只用局数最多的那个设置；并列时取更接近 0 的（更保守）
+    var pickX = null, pickN = -1;
+    tally.forEach(function (n, x) {
+      if (n > pickN || (n === pickN && Math.abs(x) < Math.abs(pickX))) {
+        pickX = x;
+        pickN = n;
+      }
+    });
+
+    var early = 0, late = 0, unclear = 0, noCount = 0, used = 0;
+    (runs || []).forEach(function (run) {
+      if (axisValue(run, axis) !== pickX) return;
+      var m = computeMetrics(run, games, mode);
+      var f = m.fast, s = m.late;
+      if (!(f + s > 0)) { noCount++; return; }
+      used++;
+      var z = (s - f) / Math.sqrt(f + s);
+      if (z >= 1) late++;
+      else if (z <= -1) early++;
+      else unclear++;
+    });
+
+    var votes = early + late;
+    var dir = null;
+    if (votes >= 3 && early !== late) dir = late > early ? 'late' : 'early';
+    var p = dir ? binomTwoSided(votes, Math.max(early, late)) : 1;
+
+    return {
+      axis: pickX,
+      n: pickN,
+      used: used,
+      early: early,
+      late: late,
+      unclear: unclear,
+      noCount: noCount,
+      votes: votes,
+      dir: dir,
+      p: p,
+      step: 15,
+      // 「票数够」和「票数一边倒」是两件事：6 票 4:2 也压不住运气
+      weak: votes < 5 || p > 0.1
+    };
+  }
+
   // 下一步该测哪个值（界面上暂时没用到，留给以后）
   function suggestNext(runs, axis, games, mode) {
     var groups = groupRuns(runs, axis, games, mode);
@@ -799,6 +871,7 @@
     percentile: percentile,
     bootstrapVertex: bootstrapVertex,
     analyze: analyze,
+    directionVote: directionVote,
     suggestNext: suggestNext
   };
 
