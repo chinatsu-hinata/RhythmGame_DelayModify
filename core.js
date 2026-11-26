@@ -638,17 +638,9 @@
       };
     }
 
-    // 每组只有 1 局：组内没有重复，重采样抽不到别的值，区间会退化成一点，
-    // 再往下算就会给出「宽度 0 → 重复性很高」的假乐观结论 —— 直接不给结论。
-    var lonely = groups.filter(function (g) { return g.n < 2; });
-    if (lonely.length === groups.length) {
-      reasons.push('每组都只打了 1 局 —— 组内没有重复，算不出「同一个设置下你会晃多少」，所以先不给结论。');
-      reasons.push('挑 3 个轴值，每个值在同一个设置下再打一局（共 6 局），再回来看。');
-      return {
-        verdict: 'insufficient', insufficientKind: 'runs', groups: groups, best: best,
-        warnings: warnings, reasons: reasons
-      };
-    }
+    // 每组只有 1 局：组内没有重复 → 重采样抽不到别的值、区间会退化成一个点，
+    // 所以「重复性」只能是 unknown（不再因此拒绝出结论 —— 3 个轴值在数学上已经
+    // 唯一确定一条抛物线，用户要的是这个数；不给的只是「它稳不稳」这个附加信息）。
 
     var fit = poly2(groups.map(function (g) {
       return { x: g.axis, y: g.mean, w: g.n };
