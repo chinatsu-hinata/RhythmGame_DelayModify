@@ -306,12 +306,6 @@
     };
   }
 
-  function tierInfos(games, game) { return gameInfo(games, game).tiers; }
-
-  function judgingNames(games, game) {
-    return gameInfo(games, game).tiers.map(function (t) { return t.name; });
-  }
-
   function centerNames(games, game) {
     return gameInfo(games, game).tiers
       .filter(function (t) { return t.role === 'center'; })
@@ -836,18 +830,6 @@
     };
   }
 
-  // 下一步该测哪个值（界面上暂时没用到，留给以后）
-  function suggestNext(runs, axis, games, mode) {
-    var groups = groupRuns(runs, axis, games, mode);
-    if (groups.length < 3) {
-      var best = groups.length
-        ? groups.reduce(function (a, b) { return b.mean > a.mean ? b : a; })
-        : { axis: 0 };
-      return '再测 ' + (best.axis > 0 ? best.axis : 0) + ' 附近 ±20 的两个值。';
-    }
-    return '数据够了，直接看结论。';
-  }
-
   /* ── 导出 ────────────────────────────────────────────────── */
 
   var api = {
@@ -856,8 +838,6 @@
     normalizeGames: normalizeGames,
     gameNames: gameNames,
     gameInfo: gameInfo,
-    tierInfos: tierInfos,
-    judgingNames: judgingNames,
     centerNames: centerNames,
     axisSupport: axisSupport,
     supportedAxes: supportedAxes,
@@ -871,8 +851,7 @@
     percentile: percentile,
     bootstrapVertex: bootstrapVertex,
     analyze: analyze,
-    directionVote: directionVote,
-    suggestNext: suggestNext
+    directionVote: directionVote
   };
 
   root.OffsetCore = api;

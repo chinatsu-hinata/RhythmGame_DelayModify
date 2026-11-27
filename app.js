@@ -139,7 +139,7 @@
     var gs = result && result.groups ? result.groups : [];
     if (gs.length < 3) return null;
     var fit = Core.poly2(gs.map(function (g) {
-      return { x: g.axis, y: g.mean, w: g.n };
+      return { x: g.axis, y: g.mean, w: Math.sqrt(g.n) };
     }));
     if (!fit || !(fit.c < 0)) return null;
     var v = -fit.b / (2 * fit.c);
@@ -250,10 +250,6 @@
     return input ? num(input.value) : 0;
   }
 
-  function roleTag(role) {
-    return Core.ROLE_LABEL[role] || '';
-  }
-
   /* ── 4. 数据层 ──────────────────────────────────────────── */
 
   // 一局：{ id, game, tiers:[{n}], f?, s?, a0, a1 }
@@ -346,7 +342,7 @@
     var info = Core.gameInfo(GAMES, state.game);
 
     tierFields.innerHTML = info.tiers.map(function (t, i) {
-      var tag = '（' + roleTag(t.role) + (t.nest ? '·含上档' : '') + '）';
+      var tag = t.nest ? '（含上档）' : '';
       return field('t' + i, t.name, tag, '');
     }).join('');
   }
@@ -439,7 +435,7 @@
   function updateGameHint() {
     var info = Core.gameInfo(GAMES, state.game);
     var parts = ['判定档位：' + info.tiers.map(function (t) {
-      return t.name + (t.role ? '（' + roleTag(t.role) + (t.nest ? '·含上档' : '') + '）' : '') +
+      return t.name + (t.nest ? '（含上档）' : '') +
         (t.dir ? '＋含早/晚' : '') +
         windowText(t.ms);
     }).join(' / ')];
@@ -923,9 +919,7 @@
     } else if (result.verdict === 'insufficient') {
       verdictLabel.textContent = '数据不够';
       verdictValue.textContent = '—';
-      var base = result.insufficientKind === 'runs'
-        ? '同一个轴值再打一局，才看得出你会晃多少。'
-        : '至少测 3 个不同的轴值，每个值 2 局。';
+      var base = '至少测 3 个不同的轴值，每个值 2 局。';
       var vh = voteHint(vote, axisName);
       verdictSub.textContent = base + (vh ? ' ' + vh : '');
     } else {
@@ -1079,7 +1073,7 @@
 
     // 二次拟合曲线（只有 ≥3 组且开口向下才画）
     var fit = groups.length >= 3 ? Core.poly2(groups.map(function (g) {
-      return { x: g.axis, y: g.mean, w: g.n };
+      return { x: g.axis, y: g.mean, w: Math.sqrt(g.n) };
     })) : null;
     if (fit && fit.c < 0) {
       ctx.strokeStyle = cssVar('--chart-line', 'rgba(255,45,122,0.9)');

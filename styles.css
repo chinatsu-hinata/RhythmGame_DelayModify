@@ -7,15 +7,12 @@
   --muted: #a89e90;
   --accent: #ffd427;
   --accent-soft: rgba(255, 212, 39, 0.14);
-  --good: #7ee08a;
   --warn: #ffb454;
   --bad: #ff7b7b;
   --radius: 14px;
 
-  --chart-bg: #1a1612;
   --chart-grid: #2c2620;
   --chart-text: #8d8375;
-  --chart-text-2: #7b7264;
   --chart-hint: #6f665a;
   --chart-axis: #3b342b;
   --chart-line: rgba(255, 212, 39, 0.85);
@@ -24,8 +21,6 @@
   --chart-sd: rgba(255, 212, 39, 0.35);
   --chart-point: #ffd427;
   --chart-point-ring: #14110e;
-  --chart-label: #efe6d6;
-  --chart-meta: #9a9082;
 }
 
 * { box-sizing: border-box; }
@@ -110,7 +105,6 @@ label {
   font-size: 12px;
   color: var(--muted);
 }
-label.accent { color: var(--accent); }
 input[type="text"], input[type="number"], select {
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -267,12 +261,6 @@ canvas#chart {
   border-radius: 8px;
 }
 .meta { color: var(--muted); font-size: 12px; }
-
-/* ── help ─────────────────────────────────────────── */
-.help ol { margin: 0; padding-left: 22px; color: #ddd3c2; font-size: 14px; }
-.help li { margin: 6px 0; }
-.help b { color: var(--accent); }
-.help li b { color: #f6e9bd; }
 
 footer {
   text-align: center;
