@@ -446,14 +446,29 @@
     return info.frame > 0 ? info.frame : 0;
   }
 
+  // 轴值的单位：输入像 0.085 这种就是「秒」，像 85 这种就是「毫秒」。返回 1 或 0.001
+  function axisScale() {
+    var big = currentRuns().reduce(function (a, r) {
+      return Math.max(a, Math.abs(Core.axisValue(r, state.axis)));
+    }, 0);
+    return big > 1.5 ? 1 : 0.001;
+  }
+
   // 建议值取整到帧：街机判定按帧，差 1ms 的设置其实落同一帧
+  // 注意游戏表的 frame 是毫秒，轴值可能是秒，这里统一换算
   function snapToFrame(v) {
     var f = gameFrame();
     if (!f || !isFinite(v)) return v;
-    return Math.round(v / f) * f;
+    var unit = f * axisScale();
+    return Math.round(v / unit) * unit;
   }
 
-  function tidy(v) { return Math.round(v * 10) / 10; }
+  // 显示用取整：统一按「0.1 毫秒」保留，不管轴值是秒还是毫秒
+  function tidy(v) {
+    var s = axisScale();
+    if (!isFinite(v)) return v;
+    return Math.round(v / s * 10) / 10 * s;
+  }
 
   // ⑤ 的举例跨度：±1 个窗口（窗口越窄，举例跨度就越小）
   function updateProbeExample() {
@@ -902,7 +917,10 @@
     if (result.verdict === 'already-fine') {
       return '【Offset Calibrator】' + state.game + ' · ' + axisName + ' = 0 已经是最优，不用调。' + metric;
     }
-    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(tidy(snapToFrame(value))) +
+    var shown = tidy(snapToFrame(value));
+    // 取整后跑到区间外就不取整，和结论卡保持同一口径
+    if (shown < r[0] - 1e-9 || shown > r[1] + 1e-9) shown = tidy(value);
+    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(shown) +
       '（区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) + '，重复性 ' + repeatOf(result) + '）' + metric;
   }
 
@@ -965,7 +983,9 @@
       // 曲线是平的：顶点公式算出来的数没有意义，宁可不给
       flatHint = !!hint && hint.kind === 'flat';
       var shown = tidy(snapToFrame(value));
-      var frameNote = (gameFrame() && Math.abs(shown - value) > 0.05)
+      // 取整后跑到区间外就不取整 —— 否则会出现「建议 -0.1，区间 -0.0958 ~ -0.0892」
+      if (shown < r[0] - 1e-9 || shown > r[1] + 1e-9) shown = tidy(value);
+      var frameNote = (gameFrame() && Math.abs(shown - value) / axisScale() > 0.5)
         ? '（按 ' + tidy(gameFrame()) + 'ms 一帧取整）' : '';
       verdictLabel.textContent = flatHint ? '测不出峰' : '建议 ' + axisName;
       verdictValue.textContent = flatHint ? '—' : signed(shown);
