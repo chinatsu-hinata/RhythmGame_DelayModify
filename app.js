@@ -986,7 +986,7 @@
       // 取整后跑到区间外就不取整 —— 否则会出现「建议 -0.1，区间 -0.0958 ~ -0.0892」
       if (shown < r[0] - 1e-9 || shown > r[1] + 1e-9) shown = tidy(value);
       var frameNote = (gameFrame() && Math.abs(shown - value) / axisScale() > 0.5)
-        ? '（按 ' + tidy(gameFrame()) + 'ms 一帧取整）' : '';
+        ? '（按 ' + Math.round(gameFrame() * 10) / 10 + 'ms 一帧取整）' : '';
       verdictLabel.textContent = flatHint ? '测不出峰' : '建议 ' + axisName;
       verdictValue.textContent = flatHint ? '—' : signed(shown);
       verdictSub.textContent = flatHint ? hint.text

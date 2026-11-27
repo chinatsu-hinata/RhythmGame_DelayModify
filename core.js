@@ -607,7 +607,18 @@
     return isFinite(step) && step > 0 ? step : 1;
   }
 
-  function round1(v) { return Math.round(v * 10) / 10; }
+  // 轴值单位：绝对值 > 1.5 当成毫秒，否则当成秒。返回「1 毫秒 = 多少个轴值单位」。
+  function msUnit(groups) {
+    var big = 0;
+    groups.forEach(function (g) { big = Math.max(big, Math.abs(g.axis)); });
+    return big <= 1.5 ? 0.001 : 1;
+  }
+
+  // 显示用的数字格式：轴值是毫秒（绝对值 > 1.5）就保留 1 位小数，是秒就保留 4 位小数。
+  // 不能一律按 1 位小数取整 —— 秒制下 0.0858 会被写成 0.1，差 14ms。
+  function fmtAxis(v, groups) {
+    return Number(v).toFixed(msUnit(groups) === 0.001 ? 4 : 1);
+  }
 
   function analyze(runs, axis, games, mode) {
     var groups = groupRuns(runs, axis, games, mode);
@@ -665,9 +676,12 @@
 
         // 「重复性」只说一件事：同样的设置重打一局，这个数会晃多少。
         // 它不包含「模型选错了」的那部分误差，所以不叫置信度。组内没有重复时给 unknown。
+        // 阈值 8ms / 18ms 是按毫秒写的，要先把区间宽度换成毫秒再比 —— 否则秒制下
+        // 宽度 0.0013 永远 ≤ 8，重复性永远是「高」。
+        var wms = boot && !boot.degenerate ? (boot.hi - boot.lo) / msUnit(groups) : 0;
         var repeatability = !boot || boot.degenerate ? 'unknown'
-          : (boot.hi - boot.lo) <= 8 ? 'high'
-            : (boot.hi - boot.lo) <= 18 ? 'medium' : 'low';
+          : wms <= 8 ? 'high'
+            : wms <= 18 ? 'medium' : 'low';
 
         // 测过的跨度不到建议区间宽的两倍 —— 顶点有一部分是外推出来的，得说清楚
         var span = hi - lo;
@@ -678,9 +692,9 @@
         }
 
         reasons.push('把 ' + groups.length + ' 个轴值的平均命中率（' + modeLabel(mode) + '）拟成抛物线，顶点在 ' +
-          peak.toFixed(1) + '。');
+          fmtAxis(peak, groups) + '。');
         if (boot && !boot.degenerate) {
-          reasons.push('重采样 ' + boot.samples + ' 次，顶点在 ' + round1(boot.lo) + ' ~ ' + round1(boot.hi) +
+          reasons.push('重采样 ' + boot.samples + ' 次，顶点在 ' + fmtAxis(boot.lo, groups) + ' ~ ' + fmtAxis(boot.hi, groups) +
             ' 之间晃（同一批数据每次算出来一样）。这个宽度只回答「重打几局会抖多少」，不含模型误差。');
         } else {
           reasons.push('组内没有重复局，重采样抽不到别的值、退化成一点 —— 所以不给重复性，只按区间用。');
