@@ -227,11 +227,11 @@
   }
 
   // 「重复性」不是「置信度」：它只说同样设置重打一局这个数会晃多少，不含模型误差
-  var REPEAT_LABEL = { high: '高', medium: '中', low: '低', unknown: '—' };
+  var REPEAT_LABEL = { high: '高', medium: '中', low: '低', unknown: '不足' };
 
   function repeatOf(result) {
     var r = result && result.repeatability !== undefined ? result.repeatability : result && result.confidence;
-    return REPEAT_LABEL[r] || '—';
+    return REPEAT_LABEL[r] || '不足';
   }
 
   // 读一个整数输入框：空 → 0；非法 → NaN（由调用方报错）
@@ -432,6 +432,39 @@
     return ' −' + ms[0] + ' / +' + ms[1] + 'ms';
   }
 
+  // 主指标那一档的窗口半宽（ms）：取最窄的那个正中档；没有就 0
+  function mainWindow() {
+    var info = Core.gameInfo(GAMES, state.game);
+    var list = info.tiers.filter(function (t) { return t.role === 'center' && t.ms; });
+    if (!list.length) return 0;
+    return list.reduce(function (a, t) { return Math.min(a, t.ms[0]); }, Infinity);
+  }
+
+  // 一帧多少 ms（只有游戏表里写了 frame 才有）
+  function gameFrame() {
+    var info = Core.gameInfo(GAMES, state.game);
+    return info.frame > 0 ? info.frame : 0;
+  }
+
+  // 建议值取整到帧：街机判定按帧，差 1ms 的设置其实落同一帧
+  function snapToFrame(v) {
+    var f = gameFrame();
+    if (!f || !isFinite(v)) return v;
+    return Math.round(v / f) * f;
+  }
+
+  function tidy(v) { return Math.round(v * 10) / 10; }
+
+  // ⑤ 的举例跨度：±1 个窗口（窗口越窄，举例跨度就越小）
+  function updateProbeExample() {
+    var el = document.getElementById('probeExample');
+    if (!el) return;
+    var w = mainWindow();
+    if (!w) { el.textContent = '（3 个不同延迟，跨度 30~50ms）'; return; }
+    var n = tidy(w);
+    el.textContent = '（推荐 ±' + n + 'ms），比如(0, -' + n + ', +' + n + ')';
+  }
+
   function updateGameHint() {
     var info = Core.gameInfo(GAMES, state.game);
     var parts = ['判定档位：' + info.tiers.map(function (t) {
@@ -450,6 +483,7 @@
     if (info.centerCount > 1) parts.push('有多个正中档 → 可以选主指标用哪一档');
 
     gameHint.textContent = parts.join(' · ');
+    updateProbeExample();
   }
 
   /* ⑥ 游戏编辑框 + 判定区间表 */
@@ -868,7 +902,7 @@
     if (result.verdict === 'already-fine') {
       return '【Offset Calibrator】' + state.game + ' · ' + axisName + ' = 0 已经是最优，不用调。' + metric;
     }
-    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(value) +
+    return '【Offset Calibrator】' + state.game + ' · 建议 ' + axisName + ' = ' + signed(tidy(snapToFrame(value))) +
       '（区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) + '，重复性 ' + repeatOf(result) + '）' + metric;
   }
 
@@ -930,11 +964,14 @@
       var hint = probeHint(result, r, value);
       // 曲线是平的：顶点公式算出来的数没有意义，宁可不给
       flatHint = !!hint && hint.kind === 'flat';
+      var shown = tidy(snapToFrame(value));
+      var frameNote = (gameFrame() && Math.abs(shown - value) > 0.05)
+        ? '（按 ' + tidy(gameFrame()) + 'ms 一帧取整）' : '';
       verdictLabel.textContent = flatHint ? '测不出峰' : '建议 ' + axisName;
-      verdictValue.textContent = flatHint ? '—' : signed(value);
+      verdictValue.textContent = flatHint ? '—' : signed(shown);
       verdictSub.textContent = flatHint ? hint.text
         : '建议区间 ' + signed(r[0]) + ' ~ ' + signed(r[1]) +
-          ' · 重复性 ' + repeatOf(result) + (hint ? ' · ' + hint.text : '');
+          ' · 重复性 ' + repeatOf(result) + frameNote + (hint ? ' · ' + hint.text : '');
       voteValue = value;
     }
 

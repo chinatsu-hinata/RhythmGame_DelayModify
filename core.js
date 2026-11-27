@@ -46,7 +46,8 @@
     'Arcaea/韵律源点': {
       a0: true, a1: false,fl:true,
       tiers: [
-        { name: 'Pure', role: 'center' },
+        // Pure = 游戏的 Perfect 档，内部还分大P(±25ms)/小P，结算只给合计数 → 按合计算，边界取小P
+        { name: 'Pure', role: 'center', ms: 50 },
         { name: 'Far', role: 'near' },
         { name: 'Lost', role: 'miss' }
       ]
@@ -61,7 +62,7 @@
       ]
     },
     'maimaiDX/舞萌DX': {
-      a0: true, a1: true, fl: true,
+      a0: true, a1: true, fl: true, frame: 16.6667, // 60fps 一帧；大P正好=1帧、小P=3帧
       tiers: [
         {name:"Critical", role:"center",ms:17}, //大P=16.666ms
         { name: 'Perfect', role: 'center',ms:50},
@@ -277,7 +278,11 @@
       // 兼容：老表只标了档位级 dir、没写游戏级 fl —— 那就当作「这局有 Fast/Late」
       if (!fl) fl = tiers.some(function (t) { return t.dir; });
 
-      out[name] = { a0: a0, a1: a1, tiers: tiers, fl: fl };
+      out[name] = {
+        a0: a0, a1: a1, tiers: tiers, fl: fl,
+        // frame：一帧多少 ms（可选）。有的话，建议值会取整到帧 —— 街机判定按帧，1ms 的差别没有意义
+        frame: (entry && !Array.isArray(entry) && Number(entry.frame) > 0) ? Number(entry.frame) : 0
+      };
     });
 
     return out;
@@ -302,7 +307,8 @@
       tiers: tiers,
       centerCount: tiers.filter(function (t) { return t.role === 'center'; }).length,
       hasDir: tiers.some(function (t) { return t.dir; }),
-      fl: !!g.fl
+      fl: !!g.fl,
+      frame: Number(g.frame) > 0 ? Number(g.frame) : 0
     };
   }
 
